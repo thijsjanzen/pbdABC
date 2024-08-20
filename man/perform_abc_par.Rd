@@ -14,7 +14,8 @@ perform_abc_par(
   obs_gamma,
   obs_colless,
   obs_num_lin,
-  num_threads = 1
+  num_threads = 1,
+  sim_number
 )
 }
 \arguments{
@@ -38,6 +39,8 @@ order: l0, mu0, l1, mu1, compl_rate}
 \item{obs_num_lin}{observed number of lineages to fit on}
 
 \item{num_threads}{number of threads}
+
+\item{sim_number}{sim number for Thijs}
 }
 \value{
 matrix

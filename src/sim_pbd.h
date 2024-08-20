@@ -2,6 +2,8 @@
 
 #include "util.h"
 #include "ltable.h"
+#include "fast_dist.h"
+
 #include <algorithm>
 #include <vector>
 #include <array>
@@ -12,6 +14,27 @@
 
 enum species_status {good, incipient, extinct};
 enum event {speciation, extinction, completion};
+
+template< class ForwardIt >
+size_t draw_index(ForwardIt first, ForwardIt last, std::mt19937_64& rndgen,
+                  double max_val = -1) {
+
+  if (max_val < 0.0) max_val = *std::max_element(first, last);
+
+  auto n = std::distance(first, last);
+
+  std::uniform_int_distribution<int> d(0, n - 1);
+  std::uniform_real_distribution<double> u(0.0, 1.0);
+
+  size_t index = 0;
+  while (true) {
+    index = d(rndgen);
+    auto f = *(first + index) / max_val;
+    if (f >= 1.0) break;
+    if (u(rndgen) < f) break;
+  }
+  return index;
+}
 
 struct sim_pbd {
   const std::array<double, 2> spec_rate;
@@ -24,9 +47,10 @@ struct sim_pbd {
   std::vector< double > pop_compl;
   std::vector< size_t > pop_sp_number;
 
- // std::array<double, 3> rates;
+  fast_dist fast_dist_spec;
+  fast_dist fast_dist_ext;
+  fast_dist fast_dist_compl;
 
-  std::array<double, 3> sum_rates;
   double total_rate;
   double t;
   double max_t;
@@ -56,7 +80,6 @@ struct sim_pbd {
     max_t(maximum_time),
     upper_limit_species(max_num) {
       t = 0.0;
-      total_rate = 1e6f;
 
       std::random_device d;
       std::mt19937_64 rndgen_t(d());
@@ -72,7 +95,6 @@ struct sim_pbd {
     max_t(maximum_time),
     upper_limit_species(max_num) {
       t = 0.0;
-      total_rate = 1e6f;
 
       //std::mt19937_64 rndgen_t(3);
       std::random_device d;
@@ -87,7 +109,6 @@ struct sim_pbd {
     pop_ext.clear();
     pop_compl.clear();
     pop_sp_number.clear();
-    sum_rates = {0.0, 0.0, 0.0};
   }
 
   void run() {
@@ -111,9 +132,9 @@ struct sim_pbd {
     pop_sp_number.push_back(sp_number);
     pop_sp_number.push_back(++sp_number);
 
-    sum_rates[speciation] = 2 * spec_rate[species_status::good];
-    sum_rates[extinction] = 2 * ext_rate[species_status::good];
-    sum_rates[completion] = 0.0;
+    fast_dist_spec  = fast_dist(pop_spec.begin(), pop_spec.end());
+    fast_dist_ext   = fast_dist(pop_ext.begin(), pop_ext.end());
+    fast_dist_compl = fast_dist(pop_compl.begin(), pop_compl.end());
 
     crown_count = {1, 1};
 
@@ -153,25 +174,9 @@ struct sim_pbd {
   }
 
   void update_rates() {
-  //  rates[speciation] = std::accumulate(pop_spec.begin(), pop_spec.end(), 0.0);
-  //  rates[extinction] = std::accumulate(pop_ext.begin(), pop_ext.end(), 0.0);
-  //  rates[completion] = std::accumulate(pop_compl.begin(), pop_compl.end(), 0.0);
-   // total_rate = rates[speciation] + rates[extinction] + rates[completion];
-
-  //  auto check_spec  = std::abs(rates[speciation] - sum_rates[speciation]) < 1e-4;
-  //  auto check_ext   = std::abs(rates[extinction] - sum_rates[extinction]) < 1e-4;
-  //  auto check_compl = std::abs(rates[completion] - sum_rates[completion]) < 1e-4;
-
-  //  if (!check_spec || !check_ext || !check_compl) {
-  //    std::cerr << rates[speciation] << " " << sum_rates[speciation] << " ";
-//      std::cerr << rates[extinction] << " " << sum_rates[extinction] << " ";
-  //    std::cerr << rates[completion] << " " << sum_rates[completion] << "\n";
-  //  }
-
-   // assert(check_spec);
-  //  assert(check_ext);
-  //  assert(check_compl);
-    total_rate = std::accumulate(sum_rates.begin(), sum_rates.end(), 0.0);
+    total_rate = fast_dist_ext.sum_val() +
+      fast_dist_spec.sum_val() +
+      fast_dist_compl.sum_val();
   }
 
   double draw_dt() {
@@ -180,8 +185,15 @@ struct sim_pbd {
   }
 
   event draw_event() {
-    std::discrete_distribution<> d(sum_rates.begin(), sum_rates.end());
-    return static_cast<event>(d(rndgen_));
+    std::uniform_real_distribution<double> d(0.0, total_rate);
+    auto r = d(rndgen_);
+    r -= fast_dist_compl.sum_val();
+    if (r <= 0.0) return completion;
+
+    r -= fast_dist_spec.sum_val();
+    if (r <= 0.0) return speciation;
+
+    return extinction;
   }
 
   void apply_event(const event& e) {
@@ -197,19 +209,15 @@ struct sim_pbd {
   }
 
   void do_extinction() {
-    std::discrete_distribution<> d(pop_ext.begin(), pop_ext.end());
-    size_t index = d(rndgen_);
+    auto index = fast_dist_ext(rndgen_);
 
     if (pop[index] == species_status::good) num_good_species--;
     if (pop[index] == species_status::incipient) num_incipient_species--;
 
-    sum_rates[speciation] -= pop_spec[index];
-    sum_rates[extinction] -= pop_ext[index];
-    sum_rates[completion] -= pop_compl[index];
-
     pop_ext[index] = 0.0;
     pop_spec[index] = 0.0;
     pop_compl[index] = 0.0;
+
     pop[index] = extinct;
 
     L[index][species_property::death_time] = t;
@@ -219,19 +227,15 @@ struct sim_pbd {
     } else {
       crown_count[1]--;
     }
+
+    fast_dist_ext.mutate_transform_partial(pop_ext.begin() + index, pop_ext.end(), index);
+    fast_dist_spec.mutate_transform_partial(pop_spec.begin() + index, pop_spec.end(), index);
+    fast_dist_compl.mutate_transform_partial(pop_compl.begin() + index, pop_compl.end(), index);
   }
 
   void do_completion() {
-    std::discrete_distribution<> d(pop_compl.begin(), pop_compl.end());
-    size_t index = d(rndgen_);
+    size_t index = fast_dist_compl(rndgen_);
 
-    // change from incipient to good
-
-    sum_rates[speciation] += spec_rate[species_status::good] -
-                             spec_rate[species_status::incipient];
-    sum_rates[extinction] += ext_rate[species_status::good] -
-                             ext_rate[species_status::incipient];
-    sum_rates[completion] -= compl_rate;
 
     pop_spec[index] = spec_rate[species_status::good];
     pop_ext[index] = ext_rate[species_status::good];
@@ -240,20 +244,24 @@ struct sim_pbd {
     pop_sp_number[index] = ++sp_number;
     num_good_species++;
     num_incipient_species--;
+
+
+    fast_dist_ext.mutate_transform_partial_n(pop_ext.begin() + index, pop_ext.size(), index);
+    fast_dist_spec.mutate_transform_partial_n(pop_spec.begin() + index, pop_spec.size(), index);
+    fast_dist_compl.mutate_transform_partial_n(pop_compl.begin() + index, pop_compl.size(), index);
+
   }
 
   void do_speciation() {
-    std::discrete_distribution<> d(pop_spec.begin(), pop_spec.end());
-    size_t index = d(rndgen_);
+    //
+    size_t index = fast_dist_spec(rndgen_);
+
+
     pop_spec.push_back(spec_rate[species_status::incipient]);
     pop_ext.push_back(ext_rate[species_status::incipient]);
     pop_compl.push_back(compl_rate);
     pop.push_back(species_status::incipient);
     pop_sp_number.push_back(pop_sp_number[index]);
-
-    sum_rates[speciation] += pop_spec.back();
-    sum_rates[extinction] += pop_ext.back();
-    sum_rates[completion] += pop_compl.back();
 
     // amend L table
     auto p_id = L[index][species_property::id];
@@ -267,6 +275,11 @@ struct sim_pbd {
     } else {
       crown_count[1]++;
     }
+
+    fast_dist_ext.append(pop_ext.back());
+    fast_dist_spec.append(pop_spec.back());
+    fast_dist_compl.append(pop_compl.back());
+
   }
 
   void select_random() {
@@ -309,10 +322,10 @@ struct sim_pbd {
 };
 
 inline std::vector< std::array<double, 4>> sim_once(const std::array<double, 5>& params,
-                     double crown_age,
-                     int max_num_species,
-                     bool *success,
-                     int *num_lin) {
+                                                    double crown_age,
+                                                    int max_num_species,
+                                                    bool *success,
+                                                    int *num_lin) {
 
   sim_pbd sim(params, crown_age, max_num_species);
   *success = false;

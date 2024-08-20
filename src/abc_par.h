@@ -268,8 +268,6 @@ struct analysis_par {
 
       int loop_size = num_remaining * 1.0 / accept_rate;
 
-      if (loop_size > 100000) loop_size = 10000;
-
       std::cerr << "\nloop_size: " << loop_size << "\n";
 
 
@@ -322,9 +320,9 @@ struct analysis_par {
       num_tried += loop_size;
       accept_rate = 1.0 * (1 + num_accepted) / num_tried;
       Rcpp::Rcout << "\ncurrent_accept_rate: " << accept_rate << "\n";
-      if (accept_rate < 1e-4) {
-        break;
-      }
+     // if (accept_rate < 1e-4) {
+    //    break;
+    //  }
     }
 
     current_sample = new_sample;

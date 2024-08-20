@@ -11,6 +11,7 @@
 #' @param obs_gamma observed gamma value to fit on
 #' @param obs_colless observed colless value to fit on
 #' @param obs_num_lin observed number of lineages to fit on
+#' @param sim_number internal value for Thijs
 #' @export
 #' @description
 #' Fit to the data is assessed by the sum of differences for
@@ -18,8 +19,8 @@
 #' ((O-E)^2)/E, where O is the value of the proposed simulation and E is the
 #' value of the empirical data (e.g. obs_gamma, obs_colless or obs_num_lineages).
 #' The acceptance threshold diminishes exponentially.
-perform_abc_rcpp_par <- function(num_particles, num_iterations, crown_age, min_lin, max_lin, lambdas, obs_gamma, obs_colless, obs_num_lin) {
-    .Call(`_pbdABC_perform_abc_rcpp_par`, num_particles, num_iterations, crown_age, min_lin, max_lin, lambdas, obs_gamma, obs_colless, obs_num_lin)
+perform_abc_rcpp_par <- function(num_particles, num_iterations, crown_age, min_lin, max_lin, lambdas, obs_gamma, obs_colless, obs_num_lin, sim_number) {
+    .Call(`_pbdABC_perform_abc_rcpp_par`, num_particles, num_iterations, crown_age, min_lin, max_lin, lambdas, obs_gamma, obs_colless, obs_num_lin, sim_number)
 }
 
 #' function to do abc using rcpp

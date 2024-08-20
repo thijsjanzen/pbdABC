@@ -11,8 +11,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // perform_abc_rcpp_par
-Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles, int num_iterations, double crown_age, double min_lin, double max_lin, std::vector<double> lambdas, double obs_gamma, double obs_colless, double obs_num_lin);
-RcppExport SEXP _pbdABC_perform_abc_rcpp_par(SEXP num_particlesSEXP, SEXP num_iterationsSEXP, SEXP crown_ageSEXP, SEXP min_linSEXP, SEXP max_linSEXP, SEXP lambdasSEXP, SEXP obs_gammaSEXP, SEXP obs_collessSEXP, SEXP obs_num_linSEXP) {
+Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles, int num_iterations, double crown_age, double min_lin, double max_lin, std::vector<double> lambdas, double obs_gamma, double obs_colless, double obs_num_lin, int sim_number);
+RcppExport SEXP _pbdABC_perform_abc_rcpp_par(SEXP num_particlesSEXP, SEXP num_iterationsSEXP, SEXP crown_ageSEXP, SEXP min_linSEXP, SEXP max_linSEXP, SEXP lambdasSEXP, SEXP obs_gammaSEXP, SEXP obs_collessSEXP, SEXP obs_num_linSEXP, SEXP sim_numberSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -25,7 +25,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type obs_gamma(obs_gammaSEXP);
     Rcpp::traits::input_parameter< double >::type obs_colless(obs_collessSEXP);
     Rcpp::traits::input_parameter< double >::type obs_num_lin(obs_num_linSEXP);
-    rcpp_result_gen = Rcpp::wrap(perform_abc_rcpp_par(num_particles, num_iterations, crown_age, min_lin, max_lin, lambdas, obs_gamma, obs_colless, obs_num_lin));
+    Rcpp::traits::input_parameter< int >::type sim_number(sim_numberSEXP);
+    rcpp_result_gen = Rcpp::wrap(perform_abc_rcpp_par(num_particles, num_iterations, crown_age, min_lin, max_lin, lambdas, obs_gamma, obs_colless, obs_num_lin, sim_number));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -119,7 +120,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_pbdABC_perform_abc_rcpp_par", (DL_FUNC) &_pbdABC_perform_abc_rcpp_par, 9},
+    {"_pbdABC_perform_abc_rcpp_par", (DL_FUNC) &_pbdABC_perform_abc_rcpp_par, 10},
     {"_pbdABC_test_abc_rcpp_par", (DL_FUNC) &_pbdABC_test_abc_rcpp_par, 9},
     {"_pbdABC_perform_abc_rcpp", (DL_FUNC) &_pbdABC_perform_abc_rcpp, 9},
     {"_pbdABC_test_simulations", (DL_FUNC) &_pbdABC_test_simulations, 3},

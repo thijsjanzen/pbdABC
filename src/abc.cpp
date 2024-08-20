@@ -1,4 +1,5 @@
 #include <Rcpp.h>
+#include <fstream>
 #include "abc.h"
 #include "util.h"
 
@@ -22,6 +23,7 @@ size_t get_rcpp_num_threads_abc() {
 //' @param obs_gamma observed gamma value to fit on
 //' @param obs_colless observed colless value to fit on
 //' @param obs_num_lin observed number of lineages to fit on
+//' @param sim_number internal value for Thijs
 //' @export
 //' @description
 //' Fit to the data is assessed by the sum of differences for
@@ -38,7 +40,8 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
                                           std::vector<double> lambdas,
                                           double obs_gamma,
                                           double obs_colless,
-                                          double obs_num_lin) {
+                                          double obs_num_lin,
+                                          int sim_number) {
 
    auto num_threads = get_rcpp_num_threads_abc();
    auto global_control = tbb::global_control(tbb::global_control::max_allowed_parallelism, num_threads);
@@ -61,9 +64,25 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
 
    for (size_t i = 1; i < num_iterations; ++i) {
      focal_analysis.iterate(i);
-     if (focal_analysis.accept_rate < 1e-4) break;
+     //if (focal_analysis.accept_rate < 1e-4) break;
      update_output(res, focal_analysis.current_sample, i);
-      focal_analysis.update_kernel(i);
+
+     std::string file_name = "res_" + std::to_string(sim_number) +
+                              "_" + std::to_string(i) + ".txt";
+     std::ofstream out(file_name.c_str());
+     for (const auto& k : focal_analysis.current_sample) {
+        out << i << " ";
+        for (size_t j = 0; j < k.params_.size(); ++j) {
+            out << k.params_[j] << " ";
+        }
+
+        out << k.gamma << " " << k.colless << " " <<
+           static_cast<double>(k.num_lin) << " " << k.weight << "\n";
+     }
+     out.close();
+
+
+     focal_analysis.update_kernel(i);
    }
 
    Rcpp::NumericMatrix out;
