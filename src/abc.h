@@ -16,26 +16,26 @@ struct particle {
   int num_lin;
 
   double weight = 1.0;
-  double sigma;
   ltable ltable_;
 
-  particle(rnd_t& rndgen,
-           double s) : sigma(s) {
+  particle(rnd_t& rndgen) {
     params_ = rndgen.draw_from_prior();
   }
 
   void perturb(rnd_t& rndgen) {
       size_t index = rndgen.random_number(params_.size());
-      double new_val = rndgen.perturb_particle_val(params_[index]);
+      double new_val = rndgen.perturb_particle_val(params_[index], index);
       params_[index] = exp(new_val);
       return;
   }
 
-  double prob_perturb(const particle& other) {
+  double prob_perturb(const particle& other,
+                      const rnd_t& rndgen) {
     //static double prefactor = -log(sigma) - 0.5 * log(2 * 3.141592653589793238);
     double s = 0.0; //other.params_.size() * prefactor;
 
     for (size_t i = 0; i < other.params_.size(); ++i) {
+      double sigma = rndgen.kernel_sigmas[i];
       double d = (params_[i] - other.params_[i]) * 1.0 / sigma;
       s += -0.5 * d * d;
     }
@@ -43,10 +43,11 @@ struct particle {
     return answ;
   }
 
-  void update_weight(const std::vector<particle>& other) {
+  void update_weight(const std::vector<particle>& other,
+                     const rnd_t& rndgen) {
     weight = 0.0;
     for (const auto& i : other) {
-      double prob = prob_perturb(i);
+      double prob = prob_perturb(i, rndgen);
       weight += prob * i.weight;
     }
   }
@@ -64,31 +65,18 @@ struct particle {
     bool crowns_alive = sim.L[0][species_property::death_time] < 0 &&
                         sim.L[1][species_property::death_time] < 0;
 
-  //  std::cerr << sim.status << " " << num_lin << " ";
-
     if (sim.status == "success" &&
         num_lin >= min_lin &&
         num_lin <= max_lin &&
         crowns_alive) {
 
       ltable_ = drop_extinct(sim.L);
-    //  std::cerr << "ltable dropped ";
-      // calc gamma and colless
-
 
       std::vector<double> brts = brts_from_ltable(ltable_);
       gamma = calc_gamma(brts);
-     // std::cerr << "gamma calculated\n";
-
-     /* for (const auto& i : ltable_) {
-        for (const auto& j : i) {
-          std::cerr << j << " ";
-        } std::cerr << "\n";
-     }*/
 
       colless_stat_ltable s(ltable_);
       colless = static_cast<double>(s.colless());
-     // std::cerr << "colless calculated ";
 
     } else {
       colless = 1e6;
@@ -113,7 +101,6 @@ struct analysis {
   const double min_lin;
   const double max_lin;
   const int num_particles;
-  const double sigma;
 
   std::vector<double> threshold;
 
@@ -123,7 +110,6 @@ struct analysis {
            double minimum_lineages,
            double maximum_lineages,
            std::vector<double> lambdas,
-           double s,
            double obs_gamma,
            double obs_colless,
            double obs_num_lin) :
@@ -133,9 +119,8 @@ struct analysis {
     crown_age(ca),
     min_lin(minimum_lineages),
     max_lin(maximum_lineages),
-    num_particles(n),
-    sigma(s) {
-    rndgen_ = rnd_t(lambdas, sigma);
+    num_particles(n) {
+    rndgen_ = rnd_t(lambdas);
     for (size_t i = 0; i < num_iterations; ++i) {
       threshold.push_back(1000 * std::exp(-0.5 * (i - 1)));
     }
@@ -151,7 +136,7 @@ struct analysis {
     int prev_print = 0;
 
     while(current_sample.size() < num_particles) {
-      auto new_particle = particle(rndgen_, sigma);
+      auto new_particle = particle(rndgen_);
 
       new_particle.sim(crown_age, min_lin, max_lin);
 
@@ -190,7 +175,7 @@ struct analysis {
         new_particle.sim(crown_age, min_lin, max_lin);
         double dist = calc_dist(new_particle);
         if (dist < threshold[iteration]) {
-          new_particle.update_weight(current_sample);
+          new_particle.update_weight(current_sample, rndgen_);
           new_sample.push_back(new_particle);
         }
 

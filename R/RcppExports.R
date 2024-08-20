@@ -8,8 +8,6 @@
 #' @param min_lin minimum number of lineages from the prior
 #' @param max_lin maximum number oflineages from the prior
 #' @param lambdas vector of one over the mean rates of the exponential priors (5)
-#' @param s perturbation standard deviation. Perturbations are made on a log scale,
-#' e.g. new_param = exp( log(old_param) + N(0, s)), this ensures they are always > 0.
 #' @param obs_gamma observed gamma value to fit on
 #' @param obs_colless observed colless value to fit on
 #' @param obs_num_lin observed number of lineages to fit on
@@ -20,8 +18,28 @@
 #' ((O-E)^2)/E, where O is the value of the proposed simulation and E is the
 #' value of the empirical data (e.g. obs_gamma, obs_colless or obs_num_lineages).
 #' The acceptance threshold diminishes exponentially.
-perform_abc_rcpp_par <- function(num_particles, num_iterations, crown_age, min_lin, max_lin, lambdas, s, obs_gamma, obs_colless, obs_num_lin) {
-    .Call(`_pbdABC_perform_abc_rcpp_par`, num_particles, num_iterations, crown_age, min_lin, max_lin, lambdas, s, obs_gamma, obs_colless, obs_num_lin)
+perform_abc_rcpp_par <- function(num_particles, num_iterations, crown_age, min_lin, max_lin, lambdas, obs_gamma, obs_colless, obs_num_lin) {
+    .Call(`_pbdABC_perform_abc_rcpp_par`, num_particles, num_iterations, crown_age, min_lin, max_lin, lambdas, obs_gamma, obs_colless, obs_num_lin)
+}
+
+#' function to do abc using rcpp
+#' @param num_particles number of particles
+#' @param num_iterations number of iterations
+#' @param crown_age crown age
+#' @param min_lin minimum number of lineages from the prior
+#' @param max_lin maximum number oflineages from the prior
+#' @param lambdas vector of one over the mean rates of the exponential priors (5)
+#' @param obs_gamma observed gamma value to fit on
+#' @param obs_colless observed colless value to fit on
+#' @param obs_num_lin observed number of lineages to fit on
+#' @description
+#' Fit to the data is assessed by the sum of differences for
+#' [gamma, colless, num_lineages], rescaled by the observed value, e.g.
+#' ((O-E)^2)/E, where O is the value of the proposed simulation and E is the
+#' value of the empirical data (e.g. obs_gamma, obs_colless or obs_num_lineages).
+#' The acceptance threshold diminishes exponentially.
+test_abc_rcpp_par <- function(num_particles, num_iterations, crown_age, min_lin, max_lin, lambdas, obs_gamma, obs_colless, obs_num_lin) {
+    .Call(`_pbdABC_test_abc_rcpp_par`, num_particles, num_iterations, crown_age, min_lin, max_lin, lambdas, obs_gamma, obs_colless, obs_num_lin)
 }
 
 #' function to do abc using rcpp
@@ -31,14 +49,12 @@ perform_abc_rcpp_par <- function(num_particles, num_iterations, crown_age, min_l
 #' @param min_lin minimum number of lineages from the prior
 #' @param max_lin maximum number oflineages from the prior
 #' @param lambdas vector of lambdas for exponential priors (5)
-#' @param s perturbation standard deviation. Perturbations are made on a log scale,
-#' e.g. new_param = exp( log(s) + N(0, s))
 #' @param obs_gamma observed gamma value to fit on
 #' @param obs_colless observed colless value to fit on
 #' @param obs_num_lin observed number of lineages to fit on
 #' @export
-perform_abc_rcpp <- function(num_particles, num_iterations, crown_age, min_lin, max_lin, lambdas, s, obs_gamma, obs_colless, obs_num_lin) {
-    .Call(`_pbdABC_perform_abc_rcpp`, num_particles, num_iterations, crown_age, min_lin, max_lin, lambdas, s, obs_gamma, obs_colless, obs_num_lin)
+perform_abc_rcpp <- function(num_particles, num_iterations, crown_age, min_lin, max_lin, lambdas, obs_gamma, obs_colless, obs_num_lin) {
+    .Call(`_pbdABC_perform_abc_rcpp`, num_particles, num_iterations, crown_age, min_lin, max_lin, lambdas, obs_gamma, obs_colless, obs_num_lin)
 }
 
 #' function to test drop extinct and calculate stats

@@ -11,29 +11,31 @@ struct rnd_t {
   }
 
   rnd_t(size_t seed,
-        const std::vector<double>& lambda_vals,
-        double s) :
+        const std::vector<double>& lambda_vals) :
     lambdas(lambda_vals) {
     rndgen_ = std::mt19937_64(seed);
     unif_dist = std::uniform_real_distribution<>(0, 1.0);
-    perturb_kernel = std::normal_distribution<double>(0.0, sigma);
     for (size_t i = 0; i < lambdas.size(); ++i) {
       log_lambdas.push_back(std::log(lambdas[i]));
     }
-    sigma = s;
   }
 
-  rnd_t(const std::vector<double>& lambda_vals,
-        double s) :
+  rnd_t(const std::vector<double>& lambda_vals) :
     lambdas(lambda_vals) {
     std::random_device rd;
     rndgen_ = std::mt19937_64(rd());
     unif_dist = std::uniform_real_distribution<>(0, 1.0);
-    perturb_kernel = std::normal_distribution<double>(0.0, sigma);
     for (size_t i = 0; i < lambdas.size(); ++i) {
       log_lambdas.push_back(std::log(lambdas[i]));
     }
-    sigma = s;
+  }
+
+  rnd_t(size_t seed,
+        const rnd_t& other) {
+    lambdas = other.lambdas;
+    kernel_sigmas = other.kernel_sigmas;
+    log_lambdas = other.log_lambdas;
+    rndgen_ = std::mt19937_64(seed);
   }
 
   std::uniform_real_distribution<> unif_dist;
@@ -56,8 +58,8 @@ struct rnd_t {
     return(d(rndgen_));
   }
 
-  double perturb_particle_val(double m) {
-    double new_val = std::exp( log(m) + perturb_kernel(rndgen_));
+  double perturb_particle_val(double m, size_t i) {
+    double new_val = std::exp( log(m) + normal(0.0, kernel_sigmas[i]));
     if (isinf(new_val)) new_val = 1e12;
     return new_val;
   }
@@ -80,9 +82,14 @@ struct rnd_t {
     return std::exp(p);
   }
 
+  void update_sigmas(std::array<double, 5> s) {
+    kernel_sigmas = s;
+  }
+
   std::vector<double> lambdas;
   std::vector<double> log_lambdas;
   double sigma;
 
-  std::normal_distribution<double> perturb_kernel;
+  std::array<double, 5> kernel_sigmas;
+
 };

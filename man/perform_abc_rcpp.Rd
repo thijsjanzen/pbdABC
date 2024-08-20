@@ -11,7 +11,6 @@ perform_abc_rcpp(
   min_lin,
   max_lin,
   lambdas,
-  s,
   obs_gamma,
   obs_colless,
   obs_num_lin
@@ -29,9 +28,6 @@ perform_abc_rcpp(
 \item{max_lin}{maximum number oflineages from the prior}
 
 \item{lambdas}{vector of lambdas for exponential priors (5)}
-
-\item{s}{perturbation standard deviation. Perturbations are made on a log scale,
-e.g. new_param = exp( log(s) + N(0, s))}
 
 \item{obs_gamma}{observed gamma value to fit on}
 

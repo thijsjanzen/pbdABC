@@ -24,7 +24,9 @@ struct sim_pbd {
   std::vector< double > pop_compl;
   std::vector< size_t > pop_sp_number;
 
-  std::array<double, 3> rates;
+ // std::array<double, 3> rates;
+
+  std::array<double, 3> sum_rates;
   double total_rate;
   double t;
   double max_t;
@@ -85,6 +87,7 @@ struct sim_pbd {
     pop_ext.clear();
     pop_compl.clear();
     pop_sp_number.clear();
+    sum_rates = {0.0, 0.0, 0.0};
   }
 
   void run() {
@@ -107,6 +110,10 @@ struct sim_pbd {
 
     pop_sp_number.push_back(sp_number);
     pop_sp_number.push_back(++sp_number);
+
+    sum_rates[speciation] = 2 * spec_rate[species_status::good];
+    sum_rates[extinction] = 2 * ext_rate[species_status::good];
+    sum_rates[completion] = 0.0;
 
     crown_count = {1, 1};
 
@@ -146,10 +153,25 @@ struct sim_pbd {
   }
 
   void update_rates() {
-    rates[speciation] = std::accumulate(pop_spec.begin(), pop_spec.end(), 0.0);
-    rates[extinction] = std::accumulate(pop_ext.begin(), pop_ext.end(), 0.0);
-    rates[completion] = std::accumulate(pop_compl.begin(), pop_compl.end(), 0.0);
-    total_rate = rates[speciation] + rates[extinction] + rates[completion];
+  //  rates[speciation] = std::accumulate(pop_spec.begin(), pop_spec.end(), 0.0);
+  //  rates[extinction] = std::accumulate(pop_ext.begin(), pop_ext.end(), 0.0);
+  //  rates[completion] = std::accumulate(pop_compl.begin(), pop_compl.end(), 0.0);
+   // total_rate = rates[speciation] + rates[extinction] + rates[completion];
+
+  //  auto check_spec  = std::abs(rates[speciation] - sum_rates[speciation]) < 1e-4;
+  //  auto check_ext   = std::abs(rates[extinction] - sum_rates[extinction]) < 1e-4;
+  //  auto check_compl = std::abs(rates[completion] - sum_rates[completion]) < 1e-4;
+
+  //  if (!check_spec || !check_ext || !check_compl) {
+  //    std::cerr << rates[speciation] << " " << sum_rates[speciation] << " ";
+//      std::cerr << rates[extinction] << " " << sum_rates[extinction] << " ";
+  //    std::cerr << rates[completion] << " " << sum_rates[completion] << "\n";
+  //  }
+
+   // assert(check_spec);
+  //  assert(check_ext);
+  //  assert(check_compl);
+    total_rate = std::accumulate(sum_rates.begin(), sum_rates.end(), 0.0);
   }
 
   double draw_dt() {
@@ -158,7 +180,7 @@ struct sim_pbd {
   }
 
   event draw_event() {
-    std::discrete_distribution<> d(rates.begin(), rates.end());
+    std::discrete_distribution<> d(sum_rates.begin(), sum_rates.end());
     return static_cast<event>(d(rndgen_));
   }
 
@@ -181,6 +203,10 @@ struct sim_pbd {
     if (pop[index] == species_status::good) num_good_species--;
     if (pop[index] == species_status::incipient) num_incipient_species--;
 
+    sum_rates[speciation] -= pop_spec[index];
+    sum_rates[extinction] -= pop_ext[index];
+    sum_rates[completion] -= pop_compl[index];
+
     pop_ext[index] = 0.0;
     pop_spec[index] = 0.0;
     pop_compl[index] = 0.0;
@@ -200,6 +226,13 @@ struct sim_pbd {
     size_t index = d(rndgen_);
 
     // change from incipient to good
+
+    sum_rates[speciation] += spec_rate[species_status::good] -
+                             spec_rate[species_status::incipient];
+    sum_rates[extinction] += ext_rate[species_status::good] -
+                             ext_rate[species_status::incipient];
+    sum_rates[completion] -= compl_rate;
+
     pop_spec[index] = spec_rate[species_status::good];
     pop_ext[index] = ext_rate[species_status::good];
     pop_compl[index] = 0.0;
@@ -217,6 +250,10 @@ struct sim_pbd {
     pop_compl.push_back(compl_rate);
     pop.push_back(species_status::incipient);
     pop_sp_number.push_back(pop_sp_number[index]);
+
+    sum_rates[speciation] += pop_spec.back();
+    sum_rates[extinction] += pop_ext.back();
+    sum_rates[completion] += pop_compl.back();
 
     // amend L table
     auto p_id = L[index][species_property::id];

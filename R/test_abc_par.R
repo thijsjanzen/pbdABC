@@ -14,18 +14,18 @@
 #' @export
 #' @rawNamespace import(Rcpp)
 #' @rawNamespace useDynLib(pbdABC, .registration = TRUE)
-perform_abc_par <- function(num_particles,
-                                 num_iterations,
-                        crown_age,
-                      min_lin,
-                      max_lin,
-                      lambdas,
-                      obs_gamma,
-                      obs_colless,
-                      obs_num_lin,
-                      num_threads = 1) {
+test_abc_par <- function(num_particles,
+                            num_iterations,
+                            crown_age,
+                            min_lin,
+                            max_lin,
+                            lambdas,
+                            obs_gamma,
+                            obs_colless,
+                            obs_num_lin,
+                            num_threads = 1) {
   RcppParallel::setThreadOptions(numThreads = num_threads)
-  res <- perform_abc_rcpp_par(num_particles,
+  res <- test_abc_rcpp_par(num_particles,
                               num_iterations,
                               crown_age,
                               min_lin,

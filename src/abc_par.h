@@ -22,17 +22,14 @@ struct particle_par {
   bool success = false;
 
   double weight = 1.0;
-  double sigma;
   ltable ltable_;
 
-  particle_par(rnd_t& rndgen,
-           double s) : sigma(s) {
+  particle_par(rnd_t& rndgen) {
     params_ = rndgen.draw_from_prior();
     success = false;
   }
 
   particle_par() {
-    sigma = 0.05;
     params_ = {0.5, 0.1, 0.5, 0.1, 1e6};
     success = false;
   }
@@ -42,17 +39,20 @@ struct particle_par {
 
   void perturb(rnd_t& rndgen) {
     size_t index = rndgen.random_number(params_.size());
-    params_[index] = rndgen.perturb_particle_val(params_[index]);
+    params_[index] = rndgen.perturb_particle_val(params_[index], index);
     return;
   }
 
-  double prob_perturb(const particle_par& other) {
-    static double prefactor = 1.0 / std::sqrt(2 * 3.141592653589793238 * sigma * sigma);
+  double prob_perturb(const particle_par& other,
+                      const rnd_t& rndgen) {
 
     // alternative calculation
     double alt_prob = 0.0;
-    static double factor = 1.0 / (-2 * sigma * sigma);
     for (size_t i = 0; i < other.params_.size(); ++i) {
+      double sigma = rndgen.kernel_sigmas[i];
+      double factor = 1.0 / (-2 * sigma * sigma);
+      double prefactor = 1.0 / std::sqrt(2 * 3.141592653589793238 * sigma * sigma);
+
       double d = std::log(params_[i]) - std::log(other.params_[i]);
       double p = (d * d) * factor;
       alt_prob += std::exp(p) * prefactor;
@@ -64,7 +64,7 @@ struct particle_par {
                      const rnd_t& rndgen) {
     double sum_perturb = 0.0;
     for (const auto& i : other) {
-      double prob = prob_perturb(i);
+      double prob = prob_perturb(i, rndgen);
       sum_perturb += prob * i.weight;
     }
 
@@ -127,10 +127,10 @@ struct analysis_par {
   const double min_lin;
   const double max_lin;
   const int num_particles;
-  const double sigma;
   double accept_rate;
 
   std::vector<double> threshold;
+  std::array<double, 5> sigmas;
 
   analysis_par(int n,
            int num_iterations,
@@ -138,7 +138,6 @@ struct analysis_par {
            double minimum_lineages,
            double maximum_lineages,
            std::vector<double> lambdas,
-           double s,
            double obs_gamma,
            double obs_colless,
            double obs_num_lin) :
@@ -148,9 +147,8 @@ struct analysis_par {
     crown_age(ca),
     min_lin(minimum_lineages),
     max_lin(maximum_lineages),
-    num_particles(n),
-    sigma(s) {
-    rndgen_ = rnd_t(lambdas, sigma);
+    num_particles(n) {
+    rndgen_ = rnd_t(lambdas);
     for (size_t i = 0; i < num_iterations; ++i) {
       threshold.push_back(10 * std::exp(-0.5 * (i - 1)));
     }
@@ -200,7 +198,7 @@ struct analysis_par {
         [&](const tbb::blocked_range<unsigned>& r) {
 
           rnd_t rndgen2(seed_values[seed_index],
-                        rndgen_.lambdas, rndgen_.sigma);
+                                   rndgen_);
           {
             std::lock_guard<std::mutex> m(mutex);
             seed_index++;
@@ -214,7 +212,7 @@ struct analysis_par {
 
           for (unsigned i = r.begin(); i < r.end(); ++i) {
 
-            auto new_particle = particle_par(rndgen2, sigma);
+            auto new_particle = particle_par(rndgen2);
 
             new_particle.sim(crown_age, min_lin, max_lin);
 
@@ -270,7 +268,10 @@ struct analysis_par {
 
       int loop_size = num_remaining * 1.0 / accept_rate;
 
+      if (loop_size > 100000) loop_size = 10000;
+
       std::cerr << "\nloop_size: " << loop_size << "\n";
+
 
       int seed_index = 0;
       std::mutex mutex;
@@ -283,7 +284,7 @@ struct analysis_par {
         [&](const tbb::blocked_range<unsigned>& r) {
 
           rnd_t rndgen2(seed_values[seed_index],
-                        rndgen_.lambdas, rndgen_.sigma);
+                                   rndgen_);
           {
             std::lock_guard<std::mutex> m(mutex);
             seed_index++;
@@ -321,7 +322,7 @@ struct analysis_par {
       num_tried += loop_size;
       accept_rate = 1.0 * (1 + num_accepted) / num_tried;
       Rcpp::Rcout << "\ncurrent_accept_rate: " << accept_rate << "\n";
-      if (accept_rate < 1e-3) {
+      if (accept_rate < 1e-4) {
         break;
       }
     }
@@ -346,11 +347,42 @@ struct analysis_par {
     double d2 = (p.colless - ref_colless);
     double d3 = (p.num_lin- ref_num_lin);
 
+    static double abs_ref_gamma = std::abs(ref_gamma);
+
     std::array<double, 3> diff;
-    diff[0] = (d1 * d1) * 1.0 / ref_gamma;
+    diff[0] = (d1 * d1) * 1.0 / abs_ref_gamma;
     diff[1] = (d2 * d2) * 1.0 / ref_colless;
     diff[2] = (d3 * d3) * 1.0 / ref_num_lin;
 
     return std::accumulate(diff.begin(), diff.end(), 0.0);   //*std::max_element(diff.begin(), diff.end());
+  }
+
+  void update_kernel(size_t iter) {
+      // each sigma is to be updated to 2*var(parval)
+
+      // calculate means
+      std::array< double, 5 > means = {0.0};
+      for (const auto& i : current_sample) {
+        for (size_t j = 0; j < 5; ++j) {
+          means[j] += std::log(i.params_[j]);
+        }
+      }
+      for (size_t j = 0; j < 5; ++j) {
+        means[j] *= 1.0 / current_sample.size();
+      }
+
+      sigmas = {0.0, 0.0, 0.0, 0.0, 0.0};
+      for (const auto& i : current_sample) {
+        for (size_t j = 0; j < 5; ++j) {
+          double d = std::log(i.params_[j]) - means[j];
+          sigmas[j] += d * d;
+        }
+      }
+      std::cerr << "iteration:" << iter << " ";
+      for (size_t j = 0; j < 5; ++j) {
+        sigmas[j] *= 2.0 / current_sample.size(); // 2 VAR!
+        std::cerr << sigmas[j] << " ";
+      } std::cerr << "\n";
+      rndgen_.update_sigmas(sigmas);
   }
 };
