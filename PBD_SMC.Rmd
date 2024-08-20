@@ -1,0 +1,87 @@
+---
+title: "PBD_ABC_progress"
+author: "Thijs Janzen"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(RcppParallel)
+library(pbdABC)
+```
+
+# Progress PBD-ABC
+
+Steps:
+
+1)	Be able to simulate Ltables using PBD
+2)	Calculate gamma and colless directly from Ltable
+3)	Set up multi-threaded ABC
+4)	Verify multi-threaded ABC
+5)	Do PBD-ABC
+
+## Step 1: create valid Ltables
+PBD simulations are implemented in C++, previously verified for the treestats paper. They return Ltables including extinct species. Unfortunately, we are only interested in reconstructed trees. This is especially important for the Colless statistic (it is easy to remove those branching points leading to extinct species to calculate the gamma statistic).
+
+Thus, I have designed an algorithm to remove extinct species from an Ltable. To do so, first, all extinct entries are removed from the Ltable. However, this may break the Ltable, as some parents are now removed. 
+Thus, we loop over the Ltable, and for those species that have a parent that no longer exists in the Ltable, we look up the parent in the original Ltable (the one that included extinct species), and then replace the orphan species with the information from the extinct parent. We do this in reverse order, e.g. starting at the youngest species. Thus, the replaced orphan species is checked again, and in case that itself also has a parent that does not exists, it gets replaced again.
+
+Now we have a functional Ltable where all species have existing parents. However, numbering is most likely not correct, and the code corrects for this to ensure that the first species has the absolute ID of 1, the second 2 etc.
+
+To verify this, a test function returns both the raw Ltable, and the dropped Ltable. When converting these to a phylogeny, they should yield the same resulting phylogeny.
+In these simulations, for sake of simplicity, I have disabled protracted speciation (e.g. setting the completion rate to infinity, and setting l1 and m1 to zero).
+
+```{r test ltable}
+
+for (r in 1:10) {
+  sim_result <- pbdABC::test_simulations(birth = 1, death = 0.5, crown_age = 5)
+  tree1 <- treestats::l_to_phylo(sim_result$ltable,
+                                 drop_extinct = TRUE)
+  tree2 <- treestats::l_to_phylo(sim_result$ltable_dropped,
+                                 drop_extinct = TRUE)
+  s1 <- treestats::calc_all_stats(tree1)
+  s2 <- treestats::calc_all_stats(tree2)
+  testthat::expect_equal(s1, s2)
+}
+```
+
+No errors appear, indicating that the method is accurate.
+
+## Step 2: Calculate Gamma and Colless accurately from an Ltable
+
+The treestats package can be included as an Rcpp header, and then the functions inside it can be accessed directly. This allows for calculation of the Gamma and Colless statistics *without* going back to R. However, it seems prudent to verify that these calculations are correct and that we are passing everything correctly. Again, we can use the testing function, as this also returns the calculated Gamma and Colless values (on the reconstructed Ltable).
+
+```{r test stats}
+for (r in 1:10) {
+  sim_result <- pbdABC::test_simulations(birth = 1, death = 0.5, crown_age = 5)
+  tree1 <- treestats::l_to_phylo(sim_result$ltable, drop_extinct = TRUE)
+  tree2 <- treestats::l_to_phylo(sim_result$ltable_dropped,
+                                 drop_extinct = TRUE)
+ 
+  g1 <- treestats::gamma_statistic(tree1)
+  g2 <- treestats::gamma_statistic(tree2)
+  g3 <- treestats::gamma_statistic(sim_result$ltable_dropped)
+  g4 <- sim_result$gamma
+  testthat::expect_equal(g1, g2)
+  testthat::expect_equal(g1, g3)
+  testthat::expect_equal(g1, g4)
+
+  c1 <- treestats::colless(tree1)
+  c2 <- treestats::colless(tree2)
+  c3 <- treestats::colless(sim_result$ltable_dropped)
+  c4 <- sim_result$colless
+  testthat::expect_equal(c1, c2)
+  testthat::expect_equal(c1, c3)
+  testthat::expect_equal(c1, c4)
+}
+```
+
+## Step 3/4: Set up multi-threaded ABC-SMC
+
+ABC_SMC can be quite computationally intensive. However, because particles for each iteration are independent, they can be generated in parallel. I have extended the Rcpp code using the RcppParallel package to make use of multithreading. Before letting the package loose on a PBD tree, I think it makes sense to first verify everything on a B-D tree.
+
+
+
+ 
+
