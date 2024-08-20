@@ -71,8 +71,8 @@ struct particle_par {
     double prob_prior = rndgen.dens_prior(params_);
     auto new_weight = prob_prior / sum_perturb;
     weight = new_weight;
-    if (isnan(new_weight)) weight = 0.0;
-    if (isinf(new_weight)) weight = 1e10;
+    if (std::isnan(new_weight)) weight = 0.0;
+    if (std::isinf(new_weight)) weight = 1e10;
     if (sum_perturb == 0.0) weight = 0.0;
     if (prob_prior == 0.0) weight = 0.0;
   }

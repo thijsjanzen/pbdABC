@@ -60,7 +60,7 @@ struct rnd_t {
 
   double perturb_particle_val(double m, size_t i) {
     double new_val = std::exp( log(m) + normal(0.0, kernel_sigmas[i]));
-    if (isinf(new_val)) new_val = 1e12;
+    if (std::isinf(new_val)) new_val = 1e12;
     return new_val;
   }
 
