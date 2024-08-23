@@ -64,15 +64,15 @@ struct rnd_t {
     std::array<double, 5> out;
     for (size_t i = 0; i < out.size(); ++i) {
       std::uniform_real_distribution<double> d(lower[i], upper[i]);
-      out[i] = exp(d(rndgen_));
+      out[i] = pow(10, d(rndgen_));
     }
     return out;
   }
 
   double dens_prior(const std::array<double, 5>& params) const {
     for (size_t i = 0; i < params.size(); ++i) {
-      if (std::log(params[i]) < lower[i]) return 0.0;
-      if (std::log(params[i]) > upper[i]) return 0.0;
+      if (std::log10(params[i]) < lower[i]) return 0.0;
+      if (std::log10(params[i]) > upper[i]) return 0.0;
     }
     return 1.0;
   }
