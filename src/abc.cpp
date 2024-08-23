@@ -19,8 +19,9 @@ size_t get_rcpp_num_threads_abc() {
 //' @param crown_age crown age
 //' @param min_lin minimum number of lineages from the prior
 //' @param max_lin maximum number oflineages from the prior
-//' @param lambdas vector of one over the mean rates of the exponential priors (5)
-//' @param obs_gamma observed gamma value to fit on
+//' @param lower minimum values of log-uniform prior (e.g. -3 = 10^-3), ordering:
+//' l0, l1, mu0, mu1, compl_rate
+//' @param upper upper values of log-uniform prior (e.g. 3 = 10^3)//' @param obs_gamma observed gamma value to fit on
 //' @param obs_colless observed colless value to fit on
 //' @param obs_num_lin observed number of lineages to fit on
 //' @param sim_number internal value for Thijs
@@ -37,7 +38,8 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
                                           double crown_age,
                                           double min_lin,
                                           double max_lin,
-                                          std::vector<double> lambdas,
+                                          std::vector<double> lower,
+                                          std::vector<double> upper,
                                           double obs_gamma,
                                           double obs_colless,
                                           double obs_num_lin,
@@ -51,7 +53,8 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
                                crown_age,
                                min_lin,
                                max_lin,
-                               lambdas,
+                               lower,
+                               upper,
                                obs_gamma,
                                obs_colless,
                                obs_num_lin);
@@ -91,14 +94,15 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
    return out;
  }
 
-
 //' function to do abc using rcpp
 //' @param num_particles number of particles
 //' @param num_iterations number of iterations
 //' @param crown_age crown age
 //' @param min_lin minimum number of lineages from the prior
 //' @param max_lin maximum number oflineages from the prior
-//' @param lambdas vector of one over the mean rates of the exponential priors (5)
+//' @param lower minimum values of log-uniform prior (e.g. -3 = 10^-3), ordering:
+//' l0, l1, mu0, mu1, compl_rate
+//' @param upper upper values of log-uniform prior (e.g. 3 = 10^3)//' @param obs_gamma observed gamma value to fit on
 //' @param obs_gamma observed gamma value to fit on
 //' @param obs_colless observed colless value to fit on
 //' @param obs_num_lin observed number of lineages to fit on
@@ -114,7 +118,8 @@ double test_abc_rcpp_par(int num_particles,
                                       double crown_age,
                                       double min_lin,
                                       double max_lin,
-                                      std::vector<double> lambdas,
+                                      std::vector<double> lower,
+                                      std::vector<double> upper,
                                       double obs_gamma,
                                       double obs_colless,
                                       double obs_num_lin) {
@@ -130,7 +135,8 @@ double test_abc_rcpp_par(int num_particles,
                                crown_age,
                                min_lin,
                                max_lin,
-                               lambdas,
+                               lower,
+                               upper,
                                obs_gamma,
                                obs_colless,
                                obs_num_lin);
@@ -167,7 +173,10 @@ double test_abc_rcpp_par(int num_particles,
 //' @param crown_age crown age
 //' @param min_lin minimum number of lineages from the prior
 //' @param max_lin maximum number oflineages from the prior
-//' @param lambdas vector of lambdas for exponential priors (5)
+//' @param lower minimum values of log-uniform prior (e.g. -3 = 10^-3), ordering:
+//' l0, l1, mu0, mu1, compl_rate
+//' @param upper upper values of log-uniform prior (e.g. 3 = 10^3)
+//' @param obs_gamma observed gamma value to fit on
 //' @param obs_gamma observed gamma value to fit on
 //' @param obs_colless observed colless value to fit on
 //' @param obs_num_lin observed number of lineages to fit on
@@ -178,7 +187,8 @@ Rcpp::NumericMatrix perform_abc_rcpp(int num_particles,
                                       double crown_age,
                                       double min_lin,
                                       double max_lin,
-                                      std::vector<double> lambdas,
+                                      std::vector<double> lower,
+                                      std::vector<double> upper,
                                       double obs_gamma,
                                       double obs_colless,
                                       double obs_num_lin) {
@@ -188,7 +198,8 @@ Rcpp::NumericMatrix perform_abc_rcpp(int num_particles,
                            crown_age,
                            min_lin,
                            max_lin,
-                           lambdas,
+                           lower,
+                           upper,
                            obs_gamma,
                            obs_colless,
                            obs_num_lin);

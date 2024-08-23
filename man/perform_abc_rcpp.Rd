@@ -10,7 +10,8 @@ perform_abc_rcpp(
   crown_age,
   min_lin,
   max_lin,
-  lambdas,
+  lower,
+  upper,
   obs_gamma,
   obs_colless,
   obs_num_lin
@@ -27,7 +28,10 @@ perform_abc_rcpp(
 
 \item{max_lin}{maximum number oflineages from the prior}
 
-\item{lambdas}{vector of lambdas for exponential priors (5)}
+\item{lower}{minimum values of log-uniform prior (e.g. -3 = 10^-3), ordering:
+l0, l1, mu0, mu1, compl_rate}
+
+\item{upper}{upper values of log-uniform prior (e.g. 3 = 10^3)}
 
 \item{obs_gamma}{observed gamma value to fit on}
 

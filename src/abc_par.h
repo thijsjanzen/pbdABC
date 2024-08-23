@@ -137,7 +137,8 @@ struct analysis_par {
            double ca,
            double minimum_lineages,
            double maximum_lineages,
-           std::vector<double> lambdas,
+           std::vector<double> lower,
+           std::vector<double> upper,
            double obs_gamma,
            double obs_colless,
            double obs_num_lin) :
@@ -148,7 +149,7 @@ struct analysis_par {
     min_lin(minimum_lineages),
     max_lin(maximum_lineages),
     num_particles(n) {
-    rndgen_ = rnd_t(lambdas);
+    rndgen_ = rnd_t(lower, upper);
     for (size_t i = 0; i < num_iterations; ++i) {
       threshold.push_back(10 * std::exp(-0.5 * (i - 1)));
     }
