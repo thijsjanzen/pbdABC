@@ -15,7 +15,9 @@ perform_abc_rcpp_par(
   obs_gamma,
   obs_colless,
   obs_num_lin,
-  sim_number
+  sim_number,
+  bd_lambda,
+  bd_mu
 )
 }
 \arguments{
@@ -39,6 +41,10 @@ l0, l1, mu0, mu1, compl_rate}
 \item{obs_num_lin}{observed number of lineages to fit on}
 
 \item{sim_number}{internal value for Thijs}
+
+\item{bd_lambda}{bd lambda}
+
+\item{bd_mu}{bd mu}
 }
 \description{
 Fit to the data is assessed by the sum of differences for

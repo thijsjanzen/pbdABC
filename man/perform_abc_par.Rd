@@ -10,12 +10,15 @@ perform_abc_par(
   crown_age,
   min_lin,
   max_lin,
-  lambdas,
+  lower,
+  upper,
   obs_gamma,
   obs_colless,
   obs_num_lin,
   num_threads = 1,
-  sim_number
+  sim_number,
+  bd_lambda = 0,
+  bd_mu = 0
 )
 }
 \arguments{
@@ -29,8 +32,9 @@ perform_abc_par(
 
 \item{max_lin}{maximum number of lineages}
 
-\item{lambdas}{vector of lambdas for exponential priors (5),
-order: l0, mu0, l1, mu1, compl_rate}
+\item{lower}{lower prior limits}
+
+\item{upper}{upper prior limits}
 
 \item{obs_gamma}{observed gamma value to fit on}
 
@@ -41,6 +45,10 @@ order: l0, mu0, l1, mu1, compl_rate}
 \item{num_threads}{number of threads}
 
 \item{sim_number}{sim number for Thijs}
+
+\item{bd_lambda}{lambda estimate using DDD::bd_ML}
+
+\item{bd_mu}{mu estimate using DDD::bd_ML}
 }
 \value{
 matrix
