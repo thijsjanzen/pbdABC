@@ -25,6 +25,8 @@ size_t get_rcpp_num_threads_abc() {
 //' @param obs_colless observed colless value to fit on
 //' @param obs_num_lin observed number of lineages to fit on
 //' @param sim_number internal value for Thijs
+//' @param bd_lambda bd lambda
+//' @param bd_mu bd mu
 //' @export
 //' @description
 //' Fit to the data is assessed by the sum of differences for
@@ -43,7 +45,9 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
                                           double obs_gamma,
                                           double obs_colless,
                                           double obs_num_lin,
-                                          int sim_number) {
+                                          int sim_number,
+                                          double bd_lambda,
+                                          double bd_mu) {
 
    auto num_threads = get_rcpp_num_threads_abc();
    auto global_control = tbb::global_control(tbb::global_control::max_allowed_parallelism, num_threads);
@@ -80,7 +84,8 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
         }
 
         out << k.gamma << " " << k.colless << " " <<
-           static_cast<double>(k.num_lin) << " " << k.weight << "\n";
+           static_cast<double>(k.num_lin) << " " << k.weight << " "
+                                          << bd_lambda << " " << bd_mu << "\n";
      }
      out.close();
 

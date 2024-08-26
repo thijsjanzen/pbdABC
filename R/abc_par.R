@@ -11,6 +11,8 @@
 #' @param obs_num_lin observed number of lineages to fit on
 #' @param num_threads number of threads
 #' @param sim_number sim number for Thijs
+#' @param bd_lambda lambda estimate using DDD::bd_ML
+#' @param bd_mu mu estimate using DDD::bd_ML
 #' @return matrix
 #' @export
 #' @rawNamespace import(Rcpp)
@@ -26,7 +28,9 @@ perform_abc_par <- function(num_particles,
                       obs_colless,
                       obs_num_lin,
                       num_threads = 1,
-                      sim_number) {
+                      sim_number,
+                      bd_lambda = 0,
+                      bd_mu = 0) {
   RcppParallel::setThreadOptions(numThreads = num_threads)
   res <- perform_abc_rcpp_par(num_particles,
                               num_iterations,
@@ -38,6 +42,8 @@ perform_abc_par <- function(num_particles,
                               obs_gamma,
                               obs_colless,
                               obs_num_lin,
-                              sim_number)
+                              sim_number,
+                              bd_lambda,
+                              bd_mu)
   return(res)
 }
