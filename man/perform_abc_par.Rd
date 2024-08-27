@@ -33,9 +33,9 @@ perform_abc_par(
 
 \item{max_lin}{maximum number of lineages}
 
-\item{lower}{lower prior limits}
+\item{lower}{lower prior limits, ordering: l0, l1, m0, m1, compl_rate}
 
-\item{upper}{upper prior limits}
+\item{upper}{upper prior limits, ordering: l0, l1, m0, m1, compl_rate}
 
 \item{obs_gamma}{observed gamma value to fit on}
 
@@ -54,7 +54,7 @@ perform_abc_par(
 \item{bd_mu}{mu estimate using DDD::bd_ML}
 }
 \value{
-matrix
+tibble
 }
 \description{
 function to do abc in parallel

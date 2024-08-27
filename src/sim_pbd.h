@@ -89,8 +89,8 @@ struct sim_pbd {
   sim_pbd(const std::array<double, 5>& p,
           double maximum_time,
           int max_num) :
-    spec_rate{p[0], p[2]},
-    ext_rate{p[1], p[3]},
+    spec_rate{p[0], p[1]},
+    ext_rate{p[2], p[3]},
     compl_rate(p[4]),
     max_t(maximum_time),
     upper_limit_species(max_num) {
