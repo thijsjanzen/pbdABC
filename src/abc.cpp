@@ -86,7 +86,7 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
         out << k.gamma << " " << k.colless << " " <<
            static_cast<double>(k.num_lin) << " " << k.weight << " " <<
             obs_gamma << " " << obs_colless << " " << obs_num_lin << " "  <<
-               bd_lambda << " " << bd_mu << " ";
+               bd_lambda << " " << bd_mu << "\n";
      }
      out.close();
 
