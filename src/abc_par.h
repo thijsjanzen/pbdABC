@@ -23,6 +23,7 @@ struct particle_par {
 
   double weight = 1.0;
   ltable ltable_;
+  double prob_prior;
 
   particle_par(rnd_t& rndgen) {
     params_ = rndgen.draw_from_prior();
@@ -60,6 +61,13 @@ struct particle_par {
     return alt_prob;
   }
 
+  bool pass_prior(const rnd_t& rndgen) {
+      prob_prior = rndgen.dens_prior(params_);
+      if (prob_prior > 0.0) return true;
+
+      return false;
+  }
+
   void update_weight(const std::vector<particle_par>& other,
                      const rnd_t& rndgen) {
     double sum_perturb = 0.0;
@@ -68,13 +76,18 @@ struct particle_par {
       sum_perturb += prob * i.weight;
     }
 
-    double prob_prior = rndgen.dens_prior(params_);
+    prob_prior = rndgen.dens_prior(params_);
     auto new_weight = prob_prior / sum_perturb;
     weight = new_weight;
     if (std::isnan(new_weight)) weight = 0.0;
     if (std::isinf(new_weight)) weight = 1e10;
     if (sum_perturb == 0.0) weight = 0.0;
     if (prob_prior == 0.0) weight = 0.0;
+
+    if (weight == 0.0) {
+      int debug = 5;
+    }
+
   }
 
   void sim(double crown_age,
@@ -304,14 +317,18 @@ struct analysis_par {
           for (unsigned i = r.begin(); i < r.end(); ++i) {
             found_particles[i] = current_sample[pick_particle(rndgen2.rndgen_)];
             found_particles[i].perturb(rndgen2);
-            found_particles[i].sim(crown_age, min_lin, max_lin);
-            if (found_particles[i].success == true) {
-              double dist = calc_dist(found_particles[i]);
-              if (dist < threshold[iteration]) {
-                found_particles[i].update_weight(current_sample, rndgen2);
-              } else {
-                found_particles[i].success = false;
+            if (found_particles[i].pass_prior(rndgen2)) {
+              found_particles[i].sim(crown_age, min_lin, max_lin);
+              if (found_particles[i].success == true) {
+                double dist = calc_dist(found_particles[i]);
+                if (dist < threshold[iteration]) {
+                  found_particles[i].update_weight(current_sample, rndgen2);
+                } else {
+                  found_particles[i].success = false;
+                }
               }
+            } else {
+              found_particles[i].success = false;
             }
           }
       });
@@ -336,6 +353,11 @@ struct analysis_par {
     for (const auto& i : current_sample) {
       sum_weights += i.weight;
     }
+    if (std::isnan(sum_weights)) {
+      int a = 5;
+    }
+
+
     double factor = 1.0 / sum_weights;
     for (auto& i : current_sample) {
       i.weight *= factor;
