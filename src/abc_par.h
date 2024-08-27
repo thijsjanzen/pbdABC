@@ -268,6 +268,7 @@ struct analysis_par {
       num_remaining = num_particles - new_sample.size();
 
       int loop_size = num_remaining * 1.0 / accept_rate;
+      if (loop_size > 100000) loop_size = 100000;
 
       std::cerr << "\nloop_size: " << loop_size << "\n";
 
