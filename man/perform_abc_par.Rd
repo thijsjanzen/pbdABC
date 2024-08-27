@@ -16,7 +16,7 @@ perform_abc_par(
   obs_colless,
   obs_num_lin,
   num_threads = 1,
-  limiting_accept_rate = 1e-06,
+  limiting_accept_rate = 1e-08,
   sim_number,
   bd_lambda = 0,
   bd_mu = 0
