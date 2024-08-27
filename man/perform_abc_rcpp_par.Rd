@@ -17,7 +17,8 @@ perform_abc_rcpp_par(
   obs_num_lin,
   sim_number,
   bd_lambda,
-  bd_mu
+  bd_mu,
+  limiting_accept_rate
 )
 }
 \arguments{

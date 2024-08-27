@@ -22,8 +22,8 @@
 #' ((O-E)^2)/E, where O is the value of the proposed simulation and E is the
 #' value of the empirical data (e.g. obs_gamma, obs_colless or obs_num_lineages).
 #' The acceptance threshold diminishes exponentially.
-perform_abc_rcpp_par <- function(num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, obs_gamma, obs_colless, obs_num_lin, sim_number, bd_lambda, bd_mu) {
-    .Call(`_pbdABC_perform_abc_rcpp_par`, num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, obs_gamma, obs_colless, obs_num_lin, sim_number, bd_lambda, bd_mu)
+perform_abc_rcpp_par <- function(num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, obs_gamma, obs_colless, obs_num_lin, sim_number, bd_lambda, bd_mu, limiting_accept_rate) {
+    .Call(`_pbdABC_perform_abc_rcpp_par`, num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, obs_gamma, obs_colless, obs_num_lin, sim_number, bd_lambda, bd_mu, limiting_accept_rate)
 }
 
 #' function to do abc using rcpp

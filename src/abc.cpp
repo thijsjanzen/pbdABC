@@ -47,7 +47,8 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
                                           double obs_num_lin,
                                           int sim_number,
                                           double bd_lambda,
-                                          double bd_mu) {
+                                          double bd_mu,
+                                          double limiting_accept_rate) {
 
    auto num_threads = get_rcpp_num_threads_abc();
    auto global_control = tbb::global_control(tbb::global_control::max_allowed_parallelism, num_threads);
@@ -61,7 +62,8 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
                                upper,
                                obs_gamma,
                                obs_colless,
-                               obs_num_lin);
+                               obs_num_lin,
+                               limiting_accept_rate);
 
    std::vector< std::array<double, 10>> res;
 
@@ -71,7 +73,7 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
 
    for (size_t i = 1; i < num_iterations; ++i) {
      focal_analysis.iterate(i);
-     //if (focal_analysis.accept_rate < 1e-4) break;
+     if (focal_analysis.accept_rate < limiting_accept_rate) break;
      update_output(res, focal_analysis.current_sample, i);
 
      std::string file_name = "res_" + std::to_string(sim_number) +
@@ -145,7 +147,8 @@ double test_abc_rcpp_par(int num_particles,
                                upper,
                                obs_gamma,
                                obs_colless,
-                               obs_num_lin);
+                               obs_num_lin,
+                               1e-6);
 
    std::vector< std::array<double, 10>> res;
 

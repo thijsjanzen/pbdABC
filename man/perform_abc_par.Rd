@@ -16,6 +16,7 @@ perform_abc_par(
   obs_colless,
   obs_num_lin,
   num_threads = 1,
+  limiting_accept_rate = 1e-06,
   sim_number,
   bd_lambda = 0,
   bd_mu = 0
@@ -43,6 +44,8 @@ perform_abc_par(
 \item{obs_num_lin}{observed number of lineages to fit on}
 
 \item{num_threads}{number of threads}
+
+\item{limiting_accept_rate}{limiting accept rate}
 
 \item{sim_number}{sim number for Thijs}
 

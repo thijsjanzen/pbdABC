@@ -126,6 +126,7 @@ struct analysis_par {
   const double crown_age;
   const double min_lin;
   const double max_lin;
+  const double limit_accept_rate;
   const int num_particles;
   double accept_rate;
 
@@ -141,14 +142,16 @@ struct analysis_par {
            std::vector<double> upper,
            double obs_gamma,
            double obs_colless,
-           double obs_num_lin) :
+           double obs_num_lin,
+           double limit_rate) :
     ref_gamma(obs_gamma),
     ref_colless(obs_colless),
     ref_num_lin(obs_num_lin),
     crown_age(ca),
     min_lin(minimum_lineages),
     max_lin(maximum_lineages),
-    num_particles(n) {
+    num_particles(n),
+    limit_accept_rate(limit_rate) {
     rndgen_ = rnd_t(lower, upper);
     for (size_t i = 0; i < num_iterations; ++i) {
       threshold.push_back(10 * std::exp(-0.5 * (i - 1)));
@@ -322,9 +325,9 @@ struct analysis_par {
       num_tried += loop_size;
       accept_rate = 1.0 * (1 + num_accepted) / num_tried;
       Rcpp::Rcout << "\ncurrent_accept_rate: " << accept_rate << "\n";
-     // if (accept_rate < 1e-4) {
-    //    break;
-    //  }
+      if (accept_rate < limit_accept_rate) {
+        break;
+      }
     }
 
     current_sample = new_sample;

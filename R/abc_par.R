@@ -10,6 +10,7 @@
 #' @param obs_colless observed colless value to fit on
 #' @param obs_num_lin observed number of lineages to fit on
 #' @param num_threads number of threads
+#' @param limiting_accept_rate limiting accept rate
 #' @param sim_number sim number for Thijs
 #' @param bd_lambda lambda estimate using DDD::bd_ML
 #' @param bd_mu mu estimate using DDD::bd_ML
@@ -28,6 +29,7 @@ perform_abc_par <- function(num_particles,
                       obs_colless,
                       obs_num_lin,
                       num_threads = 1,
+                      limiting_accept_rate = 1e-6,
                       sim_number,
                       bd_lambda = 0,
                       bd_mu = 0) {
@@ -44,6 +46,7 @@ perform_abc_par <- function(num_particles,
                               obs_num_lin,
                               sim_number,
                               bd_lambda,
-                              bd_mu)
+                              bd_mu,
+                              limiting_accept_rate)
   return(res)
 }
