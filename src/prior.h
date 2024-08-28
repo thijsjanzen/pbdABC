@@ -3,7 +3,7 @@
 #include <cmath>
 #include "rnd_thijs.h"
 
-enum dist_type {exp, uniform, nothing};
+enum dist_type {expon, uniform, nothing};
 
 const size_t num_params = 5;
 
@@ -17,7 +17,7 @@ struct prior {
 
   prior(const param_set& lambdas) :
     means(lambdas) {
-    prior_type = dist_type::exp;
+    prior_type = dist_type::expon;
     for (size_t i = 0; i < lambdas.size(); ++i) {
       log_means[i] = std::log(lambdas[i]);
     }
