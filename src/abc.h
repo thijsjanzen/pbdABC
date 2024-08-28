@@ -2,7 +2,9 @@
 
 #include <vector>
 #include <array>
+#include <cmath>
 
+#include "prior.h"
 #include "rnd_thijs.h"
 #include "sim_pbd.h"
 #include "ltable.h"
@@ -10,7 +12,7 @@
 #include "colless.h"
 
 struct particle {
-  std::array<double, 5> params_;
+  param_set params_;
   double gamma;
   double colless;
   int num_lin;
@@ -18,14 +20,14 @@ struct particle {
   double weight = 1.0;
   ltable ltable_;
 
-  particle(rnd_t& rndgen) {
-    params_ = rndgen.draw_from_prior();
+  particle(rnd_t& rndgen, const prior& prior_dist) {
+    params_ = prior_dist.gen_prior(rndgen);
   }
 
   void perturb(rnd_t& rndgen) {
       size_t index = rndgen.random_number(params_.size());
       double new_val = rndgen.perturb_particle_val(params_[index], index);
-      params_[index] = exp(new_val);
+      params_[index] = std::exp(new_val);
       return;
   }
 
@@ -102,6 +104,8 @@ struct analysis {
   const double max_lin;
   const int num_particles;
 
+  prior prior_dist;
+
   std::vector<double> threshold;
 
   analysis(int n,
@@ -109,8 +113,9 @@ struct analysis {
            double ca,
            double minimum_lineages,
            double maximum_lineages,
-           std::vector<double> lower,
-           std::vector<double> upper,
+           param_set lower,
+           param_set upper,
+           param_set means,
            double obs_gamma,
            double obs_colless,
            double obs_num_lin) :
@@ -121,9 +126,17 @@ struct analysis {
     min_lin(minimum_lineages),
     max_lin(maximum_lineages),
     num_particles(n) {
-    rndgen_ = rnd_t(lower, upper);
+    rndgen_ = rnd_t();
     for (size_t i = 0; i < num_iterations; ++i) {
       threshold.push_back(1000 * std::exp(-0.5 * (i - 1)));
+    }
+
+    if (means.empty()) {
+      prior_dist = prior(lower, upper);
+    } else if (means[0] < 0) {
+      prior_dist = prior(lower, upper);
+    } else {
+      prior_dist = prior(means);
     }
   }
 
@@ -137,7 +150,7 @@ struct analysis {
     int prev_print = 0;
 
     while(current_sample.size() < num_particles) {
-      auto new_particle = particle(rndgen_);
+      auto new_particle = particle(rndgen_, prior_dist);
 
       new_particle.sim(crown_age, min_lin, max_lin);
 

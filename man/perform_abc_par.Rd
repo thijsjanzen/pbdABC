@@ -12,6 +12,7 @@ perform_abc_par(
   max_lin,
   lower,
   upper,
+  means = c(-1, -1),
   obs_gamma,
   obs_colless,
   obs_num_lin,
@@ -33,9 +34,15 @@ perform_abc_par(
 
 \item{max_lin}{maximum number of lineages}
 
-\item{lower}{lower prior limits, ordering: l0, l1, m0, m1, compl_rate}
+\item{lower}{lower prior limits, ordering: l0, l1, m0, m1, compl_rate.
+Given are the log10 values of the prior, e.g. -5 = 10^-5.}
 
-\item{upper}{upper prior limits, ordering: l0, l1, m0, m1, compl_rate}
+\item{upper}{upper prior limits, ordering: l0, l1, m0, m1, compl_rate.
+Given are the log10 values of the prior, e.g. 5 = 10^5.}
+
+\item{means}{mean prior values, when using an exponential prior. Values
+should be > 0. Default are negative values, in which case the log-uniform
+prior is used.}
 
 \item{obs_gamma}{observed gamma value to fit on}
 

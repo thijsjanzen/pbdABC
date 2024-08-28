@@ -8,13 +8,14 @@
 #include "rnd_thijs.h"
 #include "sim_pbd.h"
 #include "ltable.h"
+#include "prior.h"
 
 #include <mutex>
 
 #include <RcppParallel.h>
 
 struct particle_par {
-  std::array<double, 5> params_;
+  param_set params_;
   double gamma;
   double colless;
   int num_lin;
@@ -25,8 +26,8 @@ struct particle_par {
   ltable ltable_;
   double prob_prior;
 
-  particle_par(rnd_t& rndgen) {
-    params_ = rndgen.draw_from_prior();
+  particle_par(prior prior_dist, rnd_t& rndgen) {
+    params_ = prior_dist.gen_prior(rndgen);
     success = false;
   }
 
@@ -61,33 +62,29 @@ struct particle_par {
     return alt_prob;
   }
 
-  bool pass_prior(const rnd_t& rndgen) {
-      prob_prior = rndgen.dens_prior(params_);
+  bool pass_prior(const prior& prior_dist) {
+      prob_prior = prior_dist.dens_prior(params_);
       if (prob_prior > 0.0) return true;
 
       return false;
   }
 
   void update_weight(const std::vector<particle_par>& other,
-                     const rnd_t& rndgen) {
+                     const rnd_t& rndgen,
+                     const prior& prior_dist) {
     double sum_perturb = 0.0;
     for (const auto& i : other) {
       double prob = prob_perturb(i, rndgen);
       sum_perturb += prob * i.weight;
     }
 
-    prob_prior = rndgen.dens_prior(params_);
+    prob_prior = prior_dist.dens_prior(params_);
     auto new_weight = prob_prior / sum_perturb;
     weight = new_weight;
     if (std::isnan(new_weight)) weight = 0.0;
     if (std::isinf(new_weight)) weight = 1e10;
     if (sum_perturb == 0.0) weight = 0.0;
     if (prob_prior == 0.0) weight = 0.0;
-
-    if (weight == 0.0) {
-      int debug = 5;
-    }
-
   }
 
   void sim(double crown_age,
@@ -139,20 +136,24 @@ struct analysis_par {
   const double crown_age;
   const double min_lin;
   const double max_lin;
-  const double limit_accept_rate;
   const int num_particles;
+  const double limit_accept_rate;
+
   double accept_rate;
 
   std::vector<double> threshold;
   std::array<double, 5> sigmas;
+
+  prior prior_dist;
 
   analysis_par(int n,
            int num_iterations,
            double ca,
            double minimum_lineages,
            double maximum_lineages,
-           std::vector<double> lower,
-           std::vector<double> upper,
+           param_set lower,
+           param_set upper,
+           param_set means,
            double obs_gamma,
            double obs_colless,
            double obs_num_lin,
@@ -165,9 +166,17 @@ struct analysis_par {
     max_lin(maximum_lineages),
     num_particles(n),
     limit_accept_rate(limit_rate) {
-    rndgen_ = rnd_t(lower, upper);
+    rndgen_ = rnd_t();
     for (size_t i = 0; i < num_iterations; ++i) {
       threshold.push_back(10 * std::exp(-0.5 * (i - 1)));
+    }
+
+    if (means.empty()) {
+      prior_dist = prior(lower, upper);
+    } else if (means[0] < 0) {
+      prior_dist = prior(lower, upper);
+    } else {
+      prior_dist = prior(means);
     }
   }
 
@@ -229,7 +238,7 @@ struct analysis_par {
 
           for (unsigned i = r.begin(); i < r.end(); ++i) {
 
-            auto new_particle = particle_par(rndgen2);
+            auto new_particle = particle_par(prior_dist, rndgen2);
 
             new_particle.sim(crown_age, min_lin, max_lin);
 
@@ -317,12 +326,12 @@ struct analysis_par {
           for (unsigned i = r.begin(); i < r.end(); ++i) {
             found_particles[i] = current_sample[pick_particle(rndgen2.rndgen_)];
             found_particles[i].perturb(rndgen2);
-            if (found_particles[i].pass_prior(rndgen2)) {
+            if (found_particles[i].pass_prior(prior_dist)) {
               found_particles[i].sim(crown_age, min_lin, max_lin);
               if (found_particles[i].success == true) {
                 double dist = calc_dist(found_particles[i]);
                 if (dist < threshold[iteration]) {
-                  found_particles[i].update_weight(current_sample, rndgen2);
+                  found_particles[i].update_weight(current_sample, rndgen2, prior_dist);
                 } else {
                   found_particles[i].success = false;
                 }
@@ -353,10 +362,6 @@ struct analysis_par {
     for (const auto& i : current_sample) {
       sum_weights += i.weight;
     }
-    if (std::isnan(sum_weights)) {
-      int a = 5;
-    }
-
 
     double factor = 1.0 / sum_weights;
     for (auto& i : current_sample) {

@@ -4,8 +4,13 @@
 #' @param crown_age crown age
 #' @param min_lin minimum number of lineages
 #' @param max_lin maximum number of lineages
-#' @param lower lower prior limits, ordering: l0, l1, m0, m1, compl_rate
-#' @param upper upper prior limits, ordering: l0, l1, m0, m1, compl_rate
+#' @param lower lower prior limits, ordering: l0, l1, m0, m1, compl_rate.
+#' Given are the log10 values of the prior, e.g. -5 = 10^-5.
+#' @param upper upper prior limits, ordering: l0, l1, m0, m1, compl_rate.
+#' Given are the log10 values of the prior, e.g. 5 = 10^5.
+#' @param means mean prior values, when using an exponential prior. Values
+#' should be > 0. Default are negative values, in which case the log-uniform
+#' prior is used.
 #' @param obs_gamma observed gamma value to fit on
 #' @param obs_colless observed colless value to fit on
 #' @param obs_num_lin observed number of lineages to fit on
@@ -23,8 +28,9 @@ perform_abc_par <- function(num_particles,
                         crown_age,
                       min_lin,
                       max_lin,
-                      lower,
-                      upper,
+                      lower = c(-3, -3, -3, -3, -6),
+                      upper = c(3, 3, 3, 3, 6),
+                      means = c(-1, -1, -1, -1, -1),
                       obs_gamma,
                       obs_colless,
                       obs_num_lin,
@@ -41,6 +47,7 @@ perform_abc_par <- function(num_particles,
                               max_lin,
                               lower,
                               upper,
+                              means,
                               obs_gamma,
                               obs_colless,
                               obs_num_lin,
@@ -50,7 +57,7 @@ perform_abc_par <- function(num_particles,
                               limiting_accept_rate)
 
   colnames(res) <- c("iter", "lambda0", "lambda1", "mu0", "mu1", "compl_rate",
-                     "gamma", "colless", "num_lin")
+                     "gamma", "colless", "num_lin", "weight")
   res <- tibble::as_tibble(res)
 
   return(res)

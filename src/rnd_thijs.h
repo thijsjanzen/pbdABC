@@ -10,34 +10,24 @@ struct rnd_t {
     unif_dist = std::uniform_real_distribution<>(0, 1.0);
   }
 
-  rnd_t(size_t seed,
-        const std::vector<double>& low,
-        const std::vector<double>& up) :
-    lower(low),
-    upper(up) {
+  rnd_t(size_t seed) {
     rndgen_ = std::mt19937_64(seed);
-    unif_dist = std::uniform_real_distribution<>(0, 1.0);
-  }
-
-  rnd_t(const std::vector<double>& low,
-        const std::vector<double>& up) :
-    lower(low),
-    upper(up) {
-    std::random_device rd;
-    rndgen_ = std::mt19937_64(rd());
     unif_dist = std::uniform_real_distribution<>(0, 1.0);
   }
 
   rnd_t(size_t seed,
         const rnd_t& other) {
-    lower = other.lower;
-    upper = other.upper;
     kernel_sigmas = other.kernel_sigmas;
     rndgen_ = std::mt19937_64(seed);
   }
 
   double uniform() {
     return unif_dist(rndgen_);
+  }
+
+  double uniform(double lower, double upper) {
+    std::uniform_real_distribution<double> d(lower, upper);
+    return d(rndgen_);
   }
 
   int random_number(unsigned int n) {
@@ -60,29 +50,9 @@ struct rnd_t {
     return new_val;
   }
 
-  std::array<double, 5> draw_from_prior() {
-    std::array<double, 5> out;
-    for (size_t i = 0; i < out.size(); ++i) {
-      std::uniform_real_distribution<double> d(lower[i], upper[i]);
-      out[i] = pow(10, d(rndgen_));
-    }
-    return out;
-  }
-
-  double dens_prior(const std::array<double, 5>& params) const {
-    for (size_t i = 0; i < params.size(); ++i) {
-      if (std::log10(params[i]) < lower[i]) return 0.0;
-      if (std::log10(params[i]) > upper[i]) return 0.0;
-    }
-    return 1.0;
-  }
-
   void update_sigmas(std::array<double, 5> s) {
     kernel_sigmas = s;
   }
-
-  std::vector<double> lower;
-  std::vector<double> upper;
 
   std::array<double, 5> kernel_sigmas;
   std::uniform_real_distribution<> unif_dist;

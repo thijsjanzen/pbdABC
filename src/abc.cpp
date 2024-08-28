@@ -42,6 +42,7 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
                                           double max_lin,
                                           std::vector<double> lower,
                                           std::vector<double> upper,
+                                          std::vector<double> means,
                                           double obs_gamma,
                                           double obs_colless,
                                           double obs_num_lin,
@@ -53,13 +54,18 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
    auto num_threads = get_rcpp_num_threads_abc();
    auto global_control = tbb::global_control(tbb::global_control::max_allowed_parallelism, num_threads);
 
+   std::array<double, 5> low; std::copy(lower.begin(), lower.end(), low.begin());
+   std::array<double, 5> up;  std::copy(upper.begin(), upper.end(), up.begin());
+   std::array<double, 5> m;   std::copy(means.begin(), means.end(), m.begin());
+
    analysis_par focal_analysis(num_particles,
                                num_iterations,
                                crown_age,
                                min_lin,
                                max_lin,
-                               lower,
-                               upper,
+                               low,
+                               up,
+                               m,
                                obs_gamma,
                                obs_colless,
                                obs_num_lin,
@@ -128,6 +134,7 @@ double test_abc_rcpp_par(int num_particles,
                                       double max_lin,
                                       std::vector<double> lower,
                                       std::vector<double> upper,
+                                      std::vector<double> means,
                                       double obs_gamma,
                                       double obs_colless,
                                       double obs_num_lin) {
@@ -138,13 +145,18 @@ double test_abc_rcpp_par(int num_particles,
    auto num_threads = get_rcpp_num_threads_abc();
    auto global_control = tbb::global_control(tbb::global_control::max_allowed_parallelism, num_threads);
 
+   std::array<double, 5> low; std::copy(lower.begin(), lower.end(), low.begin());
+   std::array<double, 5> up;  std::copy(upper.begin(), upper.end(), up.begin());
+   std::array<double, 5> m;   std::copy(means.begin(), means.end(), m.begin());
+
    analysis_par focal_analysis(num_particles,
                                num_iterations,
                                crown_age,
                                min_lin,
                                max_lin,
-                               lower,
-                               upper,
+                               low,
+                               up,
+                               m,
                                obs_gamma,
                                obs_colless,
                                obs_num_lin,
@@ -198,17 +210,23 @@ Rcpp::NumericMatrix perform_abc_rcpp(int num_particles,
                                       double max_lin,
                                       std::vector<double> lower,
                                       std::vector<double> upper,
+                                      std::vector<double> means,
                                       double obs_gamma,
                                       double obs_colless,
                                       double obs_num_lin) {
+
+   std::array<double, 5> low; std::copy(lower.begin(), lower.end(), low.begin());
+   std::array<double, 5> up;  std::copy(upper.begin(), upper.end(), up.begin());
+   std::array<double, 5> m;   std::copy(means.begin(), means.end(), m.begin());
 
    analysis focal_analysis(num_particles,
                            num_iterations,
                            crown_age,
                            min_lin,
                            max_lin,
-                           lower,
-                           upper,
+                           low,
+                           up,
+                           m,
                            obs_gamma,
                            obs_colless,
                            obs_num_lin);

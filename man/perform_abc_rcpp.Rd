@@ -12,6 +12,7 @@ perform_abc_rcpp(
   max_lin,
   lower,
   upper,
+  means,
   obs_gamma,
   obs_colless,
   obs_num_lin
