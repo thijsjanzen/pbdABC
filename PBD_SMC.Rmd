@@ -9,6 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(RcppParallel)
 library(pbdABC)
+library(tidyverse)
 ```
 
 # Progress PBD-ABC
@@ -79,9 +80,147 @@ for (r in 1:10) {
 
 ## Step 3/4: Set up multi-threaded ABC-SMC
 
-ABC_SMC can be quite computationally intensive. However, because particles for each iteration are independent, they can be generated in parallel. I have extended the Rcpp code using the RcppParallel package to make use of multithreading. Before letting the package loose on a PBD tree, I think it makes sense to first verify everything on a B-D tree.
+ABC_SMC can be quite computationally intensive. However, because particles for
+each iteration are independent, they can be generated in parallel.
+I have extended the Rcpp code using the RcppParallel package to make use of
+multithreading. Before letting the package loose on a PBD tree, I think it
+makes sense to first verify everything on a B-D tree. 
+Using a simple Yule tree, I set out to accurately reproduce the 'true' birth
+rate. This turned out to be rather complicated, due to a number of errors from
+my part: 1) rather than comparing to the true birth rate, the aim is to find
+the ML birth rate (which may differ a bit from the true rate), 2) calculation
+of the weights used for resampling in the SMC procedure was flawed, which caused
+sometimes to generate NaN values, messing up estimations, 3) I incorrectly 
+thought the prior was biasing estimates (where this in reality was due to issues
+1 and 2), and implemented two different possible priors. Thus, we can now compare
+the impact of these priors - which should be negligible ideally, given not too
+small trees. 
+
+ABC is performed using the Colless and Gamma statistic, with an exponentially
+reducing threshold, and a perturbation kernel scaled to the variance of the 
+posterior of the previous iteration. I used 1000 particles per generation. 
+Estimations were stopped when the acceptance rate fell below 1e-6, or when 
+5 hours of walltime (with 10 threads) were used up. If we want to push further,
+we could extend this of course, but for this exercise, this should suffice.
+
+### Priors
+I made use of two priors:
+1) an exponential prior with rates: c(1, 10, 10000, 10000, 0.01)
+for lambda0, mu0, lambda1, mu1 and the completion rate. This does help the estimate a bit,
+as we by default estimate lambda1 and mu1 to be very low.
+2) a log-uniform prior, which is uniform in 10^(lower, upper). I picked for lower:
+c(-5, -5, -5, -5, -5) and for upper: c(3, 3, 3, 3, 5). 
+
+Please note that the prior is used to generate the initial generation of particles,
+but is also later used to calculate weights, and to reject particles if they are
+generated outside of the prior.
+
+### Yule tree
+
+I performed 30 replicate simulations of Yule trees with a birth rate of 1, aiming
+for trees with 150 tips, using a crown age of: T = (1/b) * log(N/2), with b the
+birth rate (of 1) and N the target number of tips. This yields a crown age of
+4.3, which should give trees with an expected size of 150. For every tree, I also
+inferred the birth rate using DDD::bd_ml, and compare the ABC estimate with that.
 
 
+```{r load data, include=FALSE}
+exp_found <- readRDS("/Users/thijsjanzen/pbd_abc_yule_exp_prior.rds")
+log_found <- readRDS("/Users/thijsjanzen/pbd_abc_yule_loguniform_prior.rds")
+
+exp_found$prior <- "exponential"
+log_found$prior <- "log_uniform"
+
+found <- rbind(exp_found, log_found)
+```
+```{r plot_yule}
+found %>%
+  gather(key = "to_plot", value = "val", c(d_gamma, d_colless, d_num_lin)) %>%
+  ggplot(aes(x = iter, y = val, group = iter)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_hline(yintercept = 0.0) +
+    theme_classic() +
+    theme(legend.position = "none") +
+    facet_grid(rows = vars(to_plot), cols = vars(prior), scales = "free")
+
+found %>%
+  gather(key = "to_plot", value = "val", c(d_lambda0)) %>%
+  ggplot(aes(x = iter, y = val, group = iter)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_hline(yintercept = 0.0) +
+    theme_classic() +
+    theme(legend.position = "none") +
+    facet_grid(rows = vars(to_plot), cols = vars(prior), scales = "free")
+```
+
+Here, we see two interesting patterns: Using either prior, the ABC algorithm
+hones in rapidly to obtain gamma and colless values that are close to the observed
+values (the top plot plots the difference with the true value, centered around 0).
+
+Then, the bottom plot shows us the fit to the ML estimate of lambda. We see
+that using the exponential prior, the estimate is spot on.
+Using the log-uniform prior, the estimate is slightly below the ML value, and
+for the last few iterations seems to deviate quite a bit, possibly due to a lower
+number of replicates reaching this many iterations.
+
+### Birth-Death tree
+
+Here, we use a birth rate of 0.75, and a death rate of 0.25. The crown age is
+now 8.63
+
+```{r load data bd, include=FALSE}
+exp_found <- readRDS("/Users/thijsjanzen/pbd_abc_bd_exp_prior.rds")
+log_found <- readRDS("/Users/thijsjanzen/pbd_abc_bd_loguniform_prior.rds")
+
+exp_found$prior <- "exponential"
+log_found$prior <- "log_uniform"
+
+found <- rbind(exp_found, log_found)
+```
+```{r plot_bd}
+found %>%
+  gather(key = "to_plot", value = "val", c(d_gamma, d_colless, d_num_lin)) %>%
+  ggplot(aes(x = iter, y = val, group = iter)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_hline(yintercept = 0.0) +
+    theme_classic() +
+    theme(legend.position = "none") +
+    facet_grid(rows = vars(to_plot), cols = vars(prior), scales = "free")
+
+found %>%
+  #gather(key = "to_plot", value = "val", c(d_lambda0 - d_mu0)) %>%
+  ggplot(aes(x = iter, y = d_div, group = iter)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_hline(yintercept = 0.0) +
+    theme_classic() +
+    ylim(-2, 2) + 
+    theme(legend.position = "none") +
+    facet_wrap(~prior)
+```
+
+Here, it seems like the exponential prior yields a slight overestimate of the
+diversification rate, whereas the log-uniform prior seems on par. However, this 
+is a bit misleading, as many outliers have been removed here for the sake of
+visualisation. Furthermore, it appears that the priors have influenced the result
+a bit, as for the log-uniform prior, the extinction rate could not drop below
+1e-5 - and in general, the model tried to force the extinction rate to zero, and
+estimate birth rate of 0.5:
+
+```{r plot_bd_dens}
+found %>%
+  filter(iter == 13) %>%
+ ggplot(aes(x = mu0, color = prior)) +
+    geom_density() +
+    theme_classic() +
+    scale_x_log10()
+
+found %>%
+  filter(iter == 13) %>%
+ ggplot(aes(x = lambda0, color = prior)) +
+    geom_density() +
+    theme_classic() +
+    scale_x_log10()
+```
 
  
 

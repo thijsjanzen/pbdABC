@@ -96,7 +96,6 @@ struct sim_pbd {
     upper_limit_species(max_num) {
       t = 0.0;
 
-      //std::mt19937_64 rndgen_t(3);
       std::random_device d;
       std::mt19937_64 rndgen_t(d());
       rndgen_ = rndgen_t;
@@ -154,10 +153,16 @@ struct sim_pbd {
         status = "extinct";
         break; // extinction
       }
-      if (num_good_species + num_incipient_species > upper_limit_species) {
+      if (sp_number > upper_limit_species) {
         status = "overflow";
         break; // overflow
       }
+
+      if (num_incipient_species > 1e5) {
+        status = "overflow_incipient";
+        break; // overflow
+      }
+
       if (crown_count[0] < 1 || crown_count[1] < 1) {
         status = "extinct";
         break; // extinction
@@ -241,7 +246,8 @@ struct sim_pbd {
     pop_ext[index] = ext_rate[species_status::good];
     pop_compl[index] = 0.0;
     pop[index] = species_status::good;
-    pop_sp_number[index] = ++sp_number;
+    pop_sp_number[index] = sp_number;
+    sp_number++;
     num_good_species++;
     num_incipient_species--;
 
@@ -249,12 +255,11 @@ struct sim_pbd {
     fast_dist_ext.mutate_transform_partial_n(pop_ext.begin() + index, pop_ext.size(), index);
     fast_dist_spec.mutate_transform_partial_n(pop_spec.begin() + index, pop_spec.size(), index);
     fast_dist_compl.mutate_transform_partial_n(pop_compl.begin() + index, pop_compl.size(), index);
-
   }
 
   void do_speciation() {
     //
-    size_t index = fast_dist_spec(rndgen_);
+    size_t index =  fast_dist_spec(rndgen_);
 
 
     pop_spec.push_back(spec_rate[species_status::incipient]);
@@ -279,7 +284,6 @@ struct sim_pbd {
     fast_dist_ext.append(pop_ext.back());
     fast_dist_spec.append(pop_spec.back());
     fast_dist_compl.append(pop_compl.back());
-
   }
 
   void select_random() {

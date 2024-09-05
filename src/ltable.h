@@ -80,9 +80,8 @@ inline ltable drop_extinct(const ltable& L) {
     sort_by_time(out);
   }
 
-  out[0] = L[0];
-  out[1] = L[1]; // to avoid sorting effects
-
+ // out[0] = L[0];
+ // out[1] = L[1]; // to avoid sorting effects
 
   // and now we need to renumber to ensure consistent numbering
   for (int i = 0; i < out.size(); ++i) {
@@ -101,6 +100,21 @@ inline ltable drop_extinct(const ltable& L) {
       }
     }
   }
+
+  // now there might still be extinct species
+  bool found_extinct = false;
+  for (const auto& i : out) {
+    if (i[species_property::death_time] > 0) {
+      found_extinct = true;
+      break;
+    }
+  }
+  if (found_extinct) {
+    out = drop_extinct(out);
+  }
+
+  out[1][species_property::parent] = out[0][species_property::id];
+  out[0][species_property::parent] = 0;
 
   return out;
 }

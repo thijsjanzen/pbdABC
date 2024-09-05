@@ -14,6 +14,7 @@
 #' @param num_tries number of times to re-start the simulation in case of
 #' extinction (all species dead) or overflow (if upper_species_limit is
 #' exceeded)
+#' @param debug debug
 #' @return phy object in case of success, or a string ("extinction" or
 #' "overflow",
 #' if no tree could be generated within num_tries tries).
@@ -23,7 +24,8 @@
 pbd_sim_rcpp = function(pars,
                         age,
                         upper_species_limit = 100000,
-                        num_tries = 100) {
+                        num_tries = 100,
+                        debug = FALSE) {
   b1 = pars[1]
   c1 = pars[2]
   b2 = pars[3]
@@ -38,6 +40,11 @@ pbd_sim_rcpp = function(pars,
                      age,
                      upper_species_limit,
                      num_tries)
+
+  if (debug) {
+    return(res)
+  }
+
 
   if (res$status == "success") {
     phy <- try(treestats::l_to_phylo(res$ltable))

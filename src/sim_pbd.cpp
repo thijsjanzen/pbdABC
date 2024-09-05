@@ -28,13 +28,19 @@ Rcpp::List sim_pbd_cpp(double la0,
     }
   }
 
+  auto ltable_ = drop_extinct(sim.L);
+
   Rcpp::NumericMatrix ltable_for_r;
   vector_to_numericmatrix(sim.L, ltable_for_r);
+
+  Rcpp::NumericMatrix ltable_for_r_dropped;
+  vector_to_numericmatrix(ltable_, ltable_for_r_dropped);
 
   return Rcpp::List::create(Rcpp::Named("ltable") = ltable_for_r,
                             Rcpp::Named("status") = sim.status,
                             Rcpp::Named("Ng") = sim.get_num_good_species(),
-                            Rcpp::Named("Ni") = sim.get_num_incipient_species());
+                            Rcpp::Named("Ni") = sim.get_num_incipient_species(),
+                            Rcpp::Named("ltable_dropped") = ltable_for_r_dropped);
 }
 
 // [[Rcpp::export]]

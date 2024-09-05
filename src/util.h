@@ -60,6 +60,11 @@ inline void update_output(std::vector< std::array<double, 10>>& out,
     to_add[9] = i.weight;
 
     out.push_back(to_add);
+
+    for (const auto& j : to_add) {
+      std::cerr << j << " ";
+    } std::cerr << "\n";
+
   }
   return;
 }

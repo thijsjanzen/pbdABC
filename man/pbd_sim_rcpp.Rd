@@ -4,7 +4,13 @@
 \alias{pbd_sim_rcpp}
 \title{Function to simulate the protracted speciation process}
 \usage{
-pbd_sim_rcpp(pars, age, upper_species_limit = 1e+05, num_tries = 100)
+pbd_sim_rcpp(
+  pars,
+  age,
+  upper_species_limit = 1e+05,
+  num_tries = 100,
+  debug = FALSE
+)
 }
 \arguments{
 \item{pars}{Vector of parameters: \cr \cr \code{pars[1]} corresponds to b_1,
@@ -23,6 +29,8 @@ number of incipient species exceeds this number}
 \item{num_tries}{number of times to re-start the simulation in case of
 extinction (all species dead) or overflow (if upper_species_limit is
 exceeded)}
+
+\item{debug}{debug}
 }
 \value{
 phy object in case of success, or a string ("extinction" or
