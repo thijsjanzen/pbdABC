@@ -66,6 +66,8 @@ struct particle {
     double sum_perturb = 0.0;
     for (const auto& i : other) {
       double prob = prob_perturb(i, rndgen);
+      if (std::isnan(prob)) prob = 0.0; // this can happen sometimes for impossible values
+      if (std::isinf(prob)) prob = 0.0;
       sum_perturb += prob * i.weight;
     }
 
@@ -76,6 +78,17 @@ struct particle {
     if (std::isinf(new_weight)) weight = 1e10;
     if (sum_perturb == 0.0) weight = 0.0;
     if (prob_prior == 0.0) weight = 0.0;
+
+    if (weight == 0.0) {
+      int a = 5;
+      double sum_perturb = 0.0;
+      for (const auto& i : other) {
+        double prob = prob_perturb(i, rndgen);
+        sum_perturb += prob * i.weight;
+      }
+
+      prob_prior = prior_dist.dens_prior(params_);
+    }
   }
 
   void sim(double crown_age,

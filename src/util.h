@@ -61,9 +61,9 @@ inline void update_output(std::vector< std::array<double, 10>>& out,
 
     out.push_back(to_add);
 
-    for (const auto& j : to_add) {
+    /*for (const auto& j : to_add) {
       std::cerr << j << " ";
-    } std::cerr << "\n";
+    } std::cerr << "\n";*/
 
   }
   return;

@@ -47,6 +47,8 @@ struct rnd_t {
   double perturb_particle_val(double m, size_t i) {
     double new_val = std::exp( log(m) + normal(0.0, kernel_sigmas[i]));
     if (std::isinf(new_val)) new_val = 1e12;
+     // zero is deadly, let's use small, but not toooo small.
+    if (new_val <= 0.0) new_val = 10 * std::numeric_limits<double>::min();
     return new_val;
   }
 
