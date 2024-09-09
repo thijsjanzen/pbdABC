@@ -14,7 +14,6 @@ struct particle {
   bool success = false;
 
   double weight = 1.0;
-  ltable ltable_;
   double prob_prior;
 
   particle(prior prior_dist, rnd_t& rndgen) {
@@ -79,7 +78,7 @@ struct particle {
     if (sum_perturb == 0.0) weight = 0.0;
     if (prob_prior == 0.0) weight = 0.0;
 
-    if (weight == 0.0) {
+   /* if (weight == 0.0) {
       int a = 5;
       double sum_perturb = 0.0;
       for (const auto& i : other) {
@@ -88,7 +87,7 @@ struct particle {
       }
 
       prob_prior = prior_dist.dens_prior(params_);
-    }
+   }*/
   }
 
   void sim(double crown_age,
@@ -107,7 +106,7 @@ struct particle {
         num_lin    >= min_lin   &&
         num_lin    <= max_lin) {
 
-        ltable_ = drop_extinct(sim.L);
+        auto ltable_ = drop_extinct(sim.L);
         bool crowns_alive = ltable_[0][species_property::death_time] < 0 &&
                             ltable_[1][species_property::death_time] < 0;
 
