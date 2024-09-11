@@ -18,7 +18,7 @@ struct particle {
 
   particle(prior prior_dist, rnd_t& rndgen) {
     params_ = prior_dist.gen_prior(rndgen);
-    params_.back() = 1.0 / params_.back();
+   // params_.back() = 1.0 / params_.back();
     success = false;
   }
 
@@ -55,7 +55,7 @@ struct particle {
 
   bool pass_prior(const prior& prior_dist) {
       auto param_check = params_;
-      param_check.back() = 1.0 / param_check.back();
+     // param_check.back() = 1.0 / param_check.back();
       prob_prior = prior_dist.dens_prior(param_check);
       if (prob_prior > 0.0) return true;
 
@@ -74,7 +74,7 @@ struct particle {
     }
 
     auto prior_check = params_;
-    prior_check.back() = 1.0 / prior_check.back();
+   // prior_check.back() = 1.0 / prior_check.back();
     prob_prior = prior_dist.dens_prior(prior_check);
 
     auto new_weight = prob_prior / sum_perturb;
