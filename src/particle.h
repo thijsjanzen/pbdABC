@@ -18,6 +18,7 @@ struct particle {
 
   particle(prior prior_dist, rnd_t& rndgen) {
     params_ = prior_dist.gen_prior(rndgen);
+    params_.back() = 1.0 / params_.back();
     success = false;
   }
 
@@ -53,7 +54,9 @@ struct particle {
   }
 
   bool pass_prior(const prior& prior_dist) {
-      prob_prior = prior_dist.dens_prior(params_);
+      auto param_check = params_;
+      param_check.back() = 1.0 / param_check.back();
+      prob_prior = prior_dist.dens_prior(param_check);
       if (prob_prior > 0.0) return true;
 
       return false;
@@ -70,24 +73,16 @@ struct particle {
       sum_perturb += prob * i.weight;
     }
 
-    prob_prior = prior_dist.dens_prior(params_);
+    auto prior_check = params_;
+    prior_check.back() = 1.0 / prior_check.back();
+    prob_prior = prior_dist.dens_prior(prior_check);
+
     auto new_weight = prob_prior / sum_perturb;
     weight = new_weight;
     if (std::isnan(new_weight)) weight = 0.0;
     if (std::isinf(new_weight)) weight = 1e10;
     if (sum_perturb == 0.0) weight = 0.0;
     if (prob_prior == 0.0) weight = 0.0;
-
-   /* if (weight == 0.0) {
-      int a = 5;
-      double sum_perturb = 0.0;
-      for (const auto& i : other) {
-        double prob = prob_perturb(i, rndgen);
-        sum_perturb += prob * i.weight;
-      }
-
-      prob_prior = prior_dist.dens_prior(params_);
-   }*/
   }
 
   void sim(double crown_age,
