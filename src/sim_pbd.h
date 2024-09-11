@@ -76,7 +76,7 @@ struct sim_pbd {
           int max_num) :
     spec_rate{lambda0, lambda1},
     ext_rate{mu0, mu1},
-    compl_rate(com_rate),
+    compl_rate(1.0 / com_rate),
     max_t(maximum_time),
     upper_limit_species(max_num) {
       t = 0.0;
