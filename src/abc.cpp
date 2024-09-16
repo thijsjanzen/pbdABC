@@ -247,6 +247,43 @@ Rcpp::NumericMatrix perform_abc_rcpp(int num_particles,
    return out;
  }
 
+
+
+//' function to test prior distribution generation
+//' @param birth birth
+//' @param death death
+//' @param crown_age crown age
+//' @export
+// [[Rcpp::export]]
+Rcpp::NumericMatrix test_prior(int num_samples,
+                               const std::vector<double>& means,
+                               bool use_inv) {
+
+   std::vector< param_set > generated(num_samples);
+
+   rnd_t rndgen;
+   std::array<double, 5> m;   std::copy(means.begin(), means.end(), m.begin());
+
+   prior prior_dist(m, use_inv);
+
+   for (int i = 0; i < num_samples;  ++i) {
+         generated[i] = prior_dist.gen_prior(rndgen);
+   }
+
+   Rcpp::NumericMatrix out(num_samples, 5);
+
+   for (int i = 0; i < num_samples; ++i) {
+      for (int j = 0; j < 5; ++j) {
+         out(i, j) = generated[i][j];
+      }
+   }
+
+   return out;
+}
+
+
+
+
 //' function to test drop extinct and calculate stats
 //' @param birth birth
 //' @param death death

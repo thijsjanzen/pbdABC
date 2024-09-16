@@ -3,7 +3,7 @@
 #include <cmath>
 #include "rnd_thijs.h"
 
-enum dist_type {expon, uniform, nothing};
+enum dist_type {expon, uniform, inv_expon, nothing};
 
 const size_t num_params = 5;
 
@@ -23,6 +23,19 @@ struct prior {
     }
   }
 
+  prior(const param_set& lambdas,
+        bool inv_compl_rate) :
+    means(lambdas) {
+    prior_type = dist_type::expon;
+    for (size_t i = 0; i < lambdas.size(); ++i) {
+      log_means[i] = std::log(lambdas[i]);
+    }
+    if (inv_compl_rate) {
+       log_means.back() = std::log(1.0 / lambdas.back());
+       prior_type = dist_type::inv_expon;
+    }
+  }
+
   prior(const param_set& low,
         const param_set& up) :
     lower(low),
@@ -38,15 +51,31 @@ struct prior {
   dist_type prior_type;
 
   double dens_prior(const param_set& p) const {
-    return prior_type == dist_type::uniform ? dens_uniform(p) : dens_exp(p);
+    //return prior_type == dist_type::uniform ? dens_uniform(p) : dens_exp(p);
+    if (prior_type == dist_type::uniform) return dens_uniform(p);
+    if (prior_type == dist_type::expon) return dens_exp(p);
+    if (prior_type == dist_type::inv_expon) return dens_inv_exp(p);
+
+    return dens_exp(p); // default
   }
 
   bool pass_prior(const param_set& p) const {
-    return prior_type == dist_type::uniform ? pass_uniform(p) : pass_exp(p);
+    if (prior_type == dist_type::uniform) return pass_uniform(p);
+    if (prior_type == dist_type::expon) return pass_exp(p);
+    if (prior_type == dist_type::inv_expon) return pass_inv_exp(p);
+
+    // return prior_type == dist_type::uniform ? pass_uniform(p) : pass_exp(p);
+    //
+    return pass_exp(p); // default
   }
 
   param_set gen_prior(rnd_t& rndgen) const {
-    return prior_type == dist_type::uniform ? gen_uniform(rndgen) : gen_exp(rndgen);
+    if (prior_type == dist_type::uniform) return gen_uniform(rndgen);
+    if (prior_type == dist_type::expon) return gen_exp(rndgen);
+    if (prior_type == dist_type::inv_expon) return gen_inv_exp(rndgen);
+
+   // return prior_type == dist_type::uniform ? gen_uniform(rndgen) : gen_exp(rndgen);
+    return gen_exp(rndgen); // default
   }
 
   double dens_uniform(const param_set& p) const {
@@ -67,6 +96,20 @@ struct prior {
     return std::exp(p);
   }
 
+  double dens_inv_exp(const param_set& params) const {
+    double p = 0.0;
+    for (size_t i = 0; i < num_params - 1; ++i) {
+      if (params[i] < 0) return 0.0;
+
+      p += log_means[i] - means[i] * params[i];
+    }
+
+    if (params.back() < 0) return 0.0;
+    p += log_means.back() - means.back() * (1.0 / params.back());
+
+    return std::exp(p);
+  }
+
   bool pass_uniform(const param_set& params) const {
     auto prob_prior = dens_prior(params);
     if (prob_prior > 0.0) return true;
@@ -75,6 +118,13 @@ struct prior {
   }
 
   bool pass_exp(const param_set& params) const {
+    for (const auto& i : params) {
+      if (i < 0.0) return false;
+    }
+    return true;
+  }
+
+  bool pass_inv_exp(const param_set& params) const {
     for (const auto& i : params) {
       if (i < 0.0) return false;
     }
@@ -94,6 +144,16 @@ struct prior {
     for (size_t i = 0; i < num_params; ++i) {
       out[i] = rndgen.exp(means[i]);
     }
+    return out;
+  }
+
+  param_set gen_inv_exp(rnd_t& rndgen) const {
+    param_set out;
+    for (size_t i = 0; i < num_params; ++i) {
+      out[i] = rndgen.exp(means[i]);
+    }
+    out.back() = 1.0 / out.back();
+
     return out;
   }
 };

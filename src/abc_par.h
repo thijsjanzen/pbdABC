@@ -263,9 +263,6 @@ struct analysis_par {
     double factor = 1.0 / sum_weights;
     for (auto& i : current_sample) {
       i.weight *= factor;
-      if (std::isnan(i.weight)) {
-        int a = 5;
-      }
     }
 
     Rcpp::Rcout << "\n";
@@ -296,10 +293,6 @@ struct analysis_par {
       for (const auto& i : current_sample) {
         for (size_t j = 0; j < 5; ++j) {
           auto add = std::log(i.params_[j]);
-          if (std::isinf(add)) {
-            int a = 5;
-          }
-
 
           means[j] += add;
         }
@@ -319,13 +312,6 @@ struct analysis_par {
       for (size_t j = 0; j < 5; ++j) {
         sigmas[j] *= 2.0 / current_sample.size(); // 2 VAR!
         std::cerr << sigmas[j] << " ";
-
-        if (std::isnan(sigmas[j])) {
-          int a = 5;
-        }
-
-
-
       } std::cerr << "\n";
       rndgen_.update_sigmas(sigmas);
   }

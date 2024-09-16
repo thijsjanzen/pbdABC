@@ -77,6 +77,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// test_prior
+Rcpp::NumericMatrix test_prior(int num_samples, const std::vector<double>& means, bool use_inv);
+RcppExport SEXP _pbdABC_test_prior(SEXP num_samplesSEXP, SEXP meansSEXP, SEXP use_invSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type num_samples(num_samplesSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type means(meansSEXP);
+    Rcpp::traits::input_parameter< bool >::type use_inv(use_invSEXP);
+    rcpp_result_gen = Rcpp::wrap(test_prior(num_samples, means, use_inv));
+    return rcpp_result_gen;
+END_RCPP
+}
 // test_simulations
 Rcpp::List test_simulations(double birth, double death, double crown_age);
 RcppExport SEXP _pbdABC_test_simulations(SEXP birthSEXP, SEXP deathSEXP, SEXP crown_ageSEXP) {
@@ -132,6 +145,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_pbdABC_perform_abc_rcpp_par", (DL_FUNC) &_pbdABC_perform_abc_rcpp_par, 15},
     {"_pbdABC_test_abc_rcpp_par", (DL_FUNC) &_pbdABC_test_abc_rcpp_par, 11},
     {"_pbdABC_perform_abc_rcpp", (DL_FUNC) &_pbdABC_perform_abc_rcpp, 11},
+    {"_pbdABC_test_prior", (DL_FUNC) &_pbdABC_test_prior, 3},
     {"_pbdABC_test_simulations", (DL_FUNC) &_pbdABC_test_simulations, 3},
     {"_pbdABC_sim_pbd_cpp", (DL_FUNC) &_pbdABC_sim_pbd_cpp, 8},
     {"_pbdABC_sim_pbd_conditional_cpp", (DL_FUNC) &_pbdABC_sim_pbd_conditional_cpp, 9},

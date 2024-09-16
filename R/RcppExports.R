@@ -66,6 +66,15 @@ perform_abc_rcpp <- function(num_particles, num_iterations, crown_age, min_lin, 
     .Call(`_pbdABC_perform_abc_rcpp`, num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, means, obs_gamma, obs_colless, obs_num_lin)
 }
 
+#' function to test prior distribution generation
+#' @param birth birth
+#' @param death death
+#' @param crown_age crown age
+#' @export
+test_prior <- function(num_samples, means, use_inv) {
+    .Call(`_pbdABC_test_prior`, num_samples, means, use_inv)
+}
+
 #' function to test drop extinct and calculate stats
 #' @param birth birth
 #' @param death death
