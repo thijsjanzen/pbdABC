@@ -13,6 +13,7 @@ perform_abc_par(
   lower = c(-3, -3, -3, -3, -6),
   upper = c(3, 3, 3, 3, 6),
   means = c(-1, -1, -1, -1, -1),
+  use_inv_prior = FALSE,
   obs_gamma,
   obs_colless,
   obs_num_lin,
@@ -43,6 +44,8 @@ Given are the log10 values of the prior, e.g. 5 = 10^5.}
 \item{means}{mean prior values, when using an exponential prior. Values
 should be > 0. Default are negative values, in which case the log-uniform
 prior is used.}
+
+\item{use_inv_prior}{use of an inverse prior on completion rate?}
 
 \item{obs_gamma}{observed gamma value to fit on}
 

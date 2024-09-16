@@ -11,6 +11,7 @@
 #' @param means mean prior values, when using an exponential prior. Values
 #' should be > 0. Default are negative values, in which case the log-uniform
 #' prior is used.
+#' @param use_inv_prior use of an inverse prior on completion rate?
 #' @param obs_gamma observed gamma value to fit on
 #' @param obs_colless observed colless value to fit on
 #' @param obs_num_lin observed number of lineages to fit on
@@ -31,6 +32,7 @@ perform_abc_par <- function(num_particles,
                       lower = c(-3, -3, -3, -3, -6),
                       upper = c(3, 3, 3, 3, 6),
                       means = c(-1, -1, -1, -1, -1),
+                      use_inv_prior = FALSE,
                       obs_gamma,
                       obs_colless,
                       obs_num_lin,
@@ -48,6 +50,7 @@ perform_abc_par <- function(num_particles,
                               lower,
                               upper,
                               means,
+                              use_inv_prior,
                               obs_gamma,
                               obs_colless,
                               obs_num_lin,

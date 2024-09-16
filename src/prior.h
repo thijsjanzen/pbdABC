@@ -30,8 +30,9 @@ struct prior {
     for (size_t i = 0; i < lambdas.size(); ++i) {
       log_means[i] = std::log(lambdas[i]);
     }
-    if (inv_compl_rate) {
-       log_means.back() = std::log(1.0 / lambdas.back());
+    if (inv_compl_rate == true) {
+   //    log_means.back() = std::log(1.0 / lambdas.back());
+   //    means.back() = 1.0 / lambdas.back();
        prior_type = dist_type::inv_expon;
     }
   }
@@ -109,6 +110,17 @@ struct prior {
 
     return std::exp(p);
   }
+
+  double dens_inv_only_compl_exp(const param_set& params) const {
+    double p = log_means.back() - means.back() * (1.0 / params.back());
+    return std::exp(p);
+  }
+
+  double dens_only_compl_exp(const param_set& params) const {
+    double p = log_means.back() - means.back() * (params.back());
+    return std::exp(p);
+  }
+
 
   bool pass_uniform(const param_set& params) const {
     auto prob_prior = dens_prior(params);

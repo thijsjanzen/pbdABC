@@ -11,8 +11,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // perform_abc_rcpp_par
-Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles, int num_iterations, double crown_age, double min_lin, double max_lin, std::vector<double> lower, std::vector<double> upper, std::vector<double> means, double obs_gamma, double obs_colless, double obs_num_lin, int sim_number, double bd_lambda, double bd_mu, double limiting_accept_rate);
-RcppExport SEXP _pbdABC_perform_abc_rcpp_par(SEXP num_particlesSEXP, SEXP num_iterationsSEXP, SEXP crown_ageSEXP, SEXP min_linSEXP, SEXP max_linSEXP, SEXP lowerSEXP, SEXP upperSEXP, SEXP meansSEXP, SEXP obs_gammaSEXP, SEXP obs_collessSEXP, SEXP obs_num_linSEXP, SEXP sim_numberSEXP, SEXP bd_lambdaSEXP, SEXP bd_muSEXP, SEXP limiting_accept_rateSEXP) {
+Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles, int num_iterations, double crown_age, double min_lin, double max_lin, std::vector<double> lower, std::vector<double> upper, std::vector<double> means, bool use_inv_prior, double obs_gamma, double obs_colless, double obs_num_lin, int sim_number, double bd_lambda, double bd_mu, double limiting_accept_rate);
+RcppExport SEXP _pbdABC_perform_abc_rcpp_par(SEXP num_particlesSEXP, SEXP num_iterationsSEXP, SEXP crown_ageSEXP, SEXP min_linSEXP, SEXP max_linSEXP, SEXP lowerSEXP, SEXP upperSEXP, SEXP meansSEXP, SEXP use_inv_priorSEXP, SEXP obs_gammaSEXP, SEXP obs_collessSEXP, SEXP obs_num_linSEXP, SEXP sim_numberSEXP, SEXP bd_lambdaSEXP, SEXP bd_muSEXP, SEXP limiting_accept_rateSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -24,6 +24,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< std::vector<double> >::type lower(lowerSEXP);
     Rcpp::traits::input_parameter< std::vector<double> >::type upper(upperSEXP);
     Rcpp::traits::input_parameter< std::vector<double> >::type means(meansSEXP);
+    Rcpp::traits::input_parameter< bool >::type use_inv_prior(use_inv_priorSEXP);
     Rcpp::traits::input_parameter< double >::type obs_gamma(obs_gammaSEXP);
     Rcpp::traits::input_parameter< double >::type obs_colless(obs_collessSEXP);
     Rcpp::traits::input_parameter< double >::type obs_num_lin(obs_num_linSEXP);
@@ -31,13 +32,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type bd_lambda(bd_lambdaSEXP);
     Rcpp::traits::input_parameter< double >::type bd_mu(bd_muSEXP);
     Rcpp::traits::input_parameter< double >::type limiting_accept_rate(limiting_accept_rateSEXP);
-    rcpp_result_gen = Rcpp::wrap(perform_abc_rcpp_par(num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, means, obs_gamma, obs_colless, obs_num_lin, sim_number, bd_lambda, bd_mu, limiting_accept_rate));
+    rcpp_result_gen = Rcpp::wrap(perform_abc_rcpp_par(num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, means, use_inv_prior, obs_gamma, obs_colless, obs_num_lin, sim_number, bd_lambda, bd_mu, limiting_accept_rate));
     return rcpp_result_gen;
 END_RCPP
 }
 // test_abc_rcpp_par
-double test_abc_rcpp_par(int num_particles, int num_iterations, double crown_age, double min_lin, double max_lin, std::vector<double> lower, std::vector<double> upper, std::vector<double> means, double obs_gamma, double obs_colless, double obs_num_lin);
-RcppExport SEXP _pbdABC_test_abc_rcpp_par(SEXP num_particlesSEXP, SEXP num_iterationsSEXP, SEXP crown_ageSEXP, SEXP min_linSEXP, SEXP max_linSEXP, SEXP lowerSEXP, SEXP upperSEXP, SEXP meansSEXP, SEXP obs_gammaSEXP, SEXP obs_collessSEXP, SEXP obs_num_linSEXP) {
+double test_abc_rcpp_par(int num_particles, int num_iterations, double crown_age, double min_lin, double max_lin, std::vector<double> lower, std::vector<double> upper, std::vector<double> means, bool use_inv_prior, double obs_gamma, double obs_colless, double obs_num_lin);
+RcppExport SEXP _pbdABC_test_abc_rcpp_par(SEXP num_particlesSEXP, SEXP num_iterationsSEXP, SEXP crown_ageSEXP, SEXP min_linSEXP, SEXP max_linSEXP, SEXP lowerSEXP, SEXP upperSEXP, SEXP meansSEXP, SEXP use_inv_priorSEXP, SEXP obs_gammaSEXP, SEXP obs_collessSEXP, SEXP obs_num_linSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -49,10 +50,11 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< std::vector<double> >::type lower(lowerSEXP);
     Rcpp::traits::input_parameter< std::vector<double> >::type upper(upperSEXP);
     Rcpp::traits::input_parameter< std::vector<double> >::type means(meansSEXP);
+    Rcpp::traits::input_parameter< bool >::type use_inv_prior(use_inv_priorSEXP);
     Rcpp::traits::input_parameter< double >::type obs_gamma(obs_gammaSEXP);
     Rcpp::traits::input_parameter< double >::type obs_colless(obs_collessSEXP);
     Rcpp::traits::input_parameter< double >::type obs_num_lin(obs_num_linSEXP);
-    rcpp_result_gen = Rcpp::wrap(test_abc_rcpp_par(num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, means, obs_gamma, obs_colless, obs_num_lin));
+    rcpp_result_gen = Rcpp::wrap(test_abc_rcpp_par(num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, means, use_inv_prior, obs_gamma, obs_colless, obs_num_lin));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -142,8 +144,8 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_pbdABC_perform_abc_rcpp_par", (DL_FUNC) &_pbdABC_perform_abc_rcpp_par, 15},
-    {"_pbdABC_test_abc_rcpp_par", (DL_FUNC) &_pbdABC_test_abc_rcpp_par, 11},
+    {"_pbdABC_perform_abc_rcpp_par", (DL_FUNC) &_pbdABC_perform_abc_rcpp_par, 16},
+    {"_pbdABC_test_abc_rcpp_par", (DL_FUNC) &_pbdABC_test_abc_rcpp_par, 12},
     {"_pbdABC_perform_abc_rcpp", (DL_FUNC) &_pbdABC_perform_abc_rcpp, 11},
     {"_pbdABC_test_prior", (DL_FUNC) &_pbdABC_test_prior, 3},
     {"_pbdABC_test_simulations", (DL_FUNC) &_pbdABC_test_simulations, 3},

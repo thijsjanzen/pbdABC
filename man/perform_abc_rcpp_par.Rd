@@ -13,6 +13,7 @@ perform_abc_rcpp_par(
   lower,
   upper,
   means,
+  use_inv_prior,
   obs_gamma,
   obs_colless,
   obs_num_lin,
@@ -37,6 +38,8 @@ perform_abc_rcpp_par(
 l0, l1, mu0, mu1, compl_rate}
 
 \item{upper}{upper values of log-uniform prior (e.g. 3 = 10^3)//' @param obs_gamma observed gamma value to fit on}
+
+\item{use_inv_prior}{usage of an inverse prior on completion rate?}
 
 \item{obs_colless}{observed colless value to fit on}
 

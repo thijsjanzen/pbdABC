@@ -47,6 +47,7 @@ struct analysis_par {
            param_set lower,
            param_set upper,
            param_set means,
+           bool use_inv_prior,
            double obs_gamma,
            double obs_colless,
            double obs_num_lin,
@@ -69,7 +70,7 @@ struct analysis_par {
     } else if (means[0] < 0) {
       prior_dist = prior(lower, upper);
     } else {
-      prior_dist = prior(means);
+      prior_dist = prior(means, use_inv_prior);
     }
   }
 

@@ -21,6 +21,7 @@ size_t get_rcpp_num_threads_abc() {
 //' @param max_lin maximum number oflineages from the prior
 //' @param lower minimum values of log-uniform prior (e.g. -3 = 10^-3), ordering:
 //' l0, l1, mu0, mu1, compl_rate
+//' @param use_inv_prior usage of an inverse prior on completion rate?
 //' @param upper upper values of log-uniform prior (e.g. 3 = 10^3)//' @param obs_gamma observed gamma value to fit on
 //' @param obs_colless observed colless value to fit on
 //' @param obs_num_lin observed number of lineages to fit on
@@ -43,6 +44,7 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
                                          std::vector<double> lower,
                                          std::vector<double> upper,
                                          std::vector<double> means,
+                                         bool use_inv_prior,
                                          double obs_gamma,
                                          double obs_colless,
                                          double obs_num_lin,
@@ -66,6 +68,7 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
                                low,
                                up,
                                m,
+                               use_inv_prior,
                                obs_gamma,
                                obs_colless,
                                obs_num_lin,
@@ -117,6 +120,7 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
 //' @param lower minimum values of log-uniform prior (e.g. -3 = 10^-3), ordering:
 //' l0, l1, mu0, mu1, compl_rate
 //' @param upper upper values of log-uniform prior (e.g. 3 = 10^3)//' @param obs_gamma observed gamma value to fit on
+//' @param use_inv_prior use inverse prior
 //' @param obs_gamma observed gamma value to fit on
 //' @param obs_colless observed colless value to fit on
 //' @param obs_num_lin observed number of lineages to fit on
@@ -135,6 +139,7 @@ double test_abc_rcpp_par(int num_particles,
                                       std::vector<double> lower,
                                       std::vector<double> upper,
                                       std::vector<double> means,
+                                      bool use_inv_prior,
                                       double obs_gamma,
                                       double obs_colless,
                                       double obs_num_lin) {
@@ -157,6 +162,7 @@ double test_abc_rcpp_par(int num_particles,
                                low,
                                up,
                                m,
+                               use_inv_prior,
                                obs_gamma,
                                obs_colless,
                                obs_num_lin,
@@ -259,7 +265,7 @@ Rcpp::NumericMatrix test_prior(int num_samples,
                                const std::vector<double>& means,
                                bool use_inv) {
 
-   std::vector< param_set > generated(num_samples);
+   std::vector< std::array< double, 2> > generated(num_samples);
 
    rnd_t rndgen;
    std::array<double, 5> m;   std::copy(means.begin(), means.end(), m.begin());
@@ -267,13 +273,20 @@ Rcpp::NumericMatrix test_prior(int num_samples,
    prior prior_dist(m, use_inv);
 
    for (int i = 0; i < num_samples;  ++i) {
-         generated[i] = prior_dist.gen_prior(rndgen);
+      auto val = prior_dist.gen_prior(rndgen);
+      generated[i][0] = val.back();
+
+      if (use_inv) {
+         generated[i][1] = prior_dist.dens_inv_only_compl_exp(val);
+      } else {
+         generated[i][1] = prior_dist.dens_only_compl_exp(val);
+      }
    }
 
-   Rcpp::NumericMatrix out(num_samples, 5);
+   Rcpp::NumericMatrix out(num_samples, 2);
 
    for (int i = 0; i < num_samples; ++i) {
-      for (int j = 0; j < 5; ++j) {
+      for (int j = 0; j < 2; ++j) {
          out(i, j) = generated[i][j];
       }
    }
