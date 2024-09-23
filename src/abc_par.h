@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <array>
+#include <fstream>
 #include "colless.h"
 #include "gamma.h"
 
@@ -315,5 +316,41 @@ struct analysis_par {
         std::cerr << sigmas[j] << " ";
       } std::cerr << "\n";
       rndgen_.update_sigmas(sigmas);
+  }
+
+  void write_to_file(int sim_number,
+                     int iter,
+                     double obs_gamma,
+                     double obs_colless,
+                     double obs_num_lin,
+                     double bd_lambda,
+                     double bd_mu) {
+    std::string file_name = "res_" + std::to_string(sim_number) +
+      "_" + std::to_string(iter) + ".txt";
+    std::ofstream out(file_name.c_str());
+    for (const auto& k : current_sample) {
+      out << iter << " ";
+      for (size_t j = 0; j < k.params_.size(); ++j) {
+        out << k.params_[j] << " ";
+      }
+
+      out << k.gamma << " " << k.colless << " " <<
+        static_cast<double>(k.num_lin) << " " << k.weight << " " <<
+          obs_gamma << " " << obs_colless << " " << obs_num_lin << " "  <<
+            bd_lambda << " " << bd_mu << "\n";
+    }
+    out.close();
+    return;
+  }
+
+  void write_trees(int sim_number,
+                   int iter) {
+    std::string file_name = "trees_" + std::to_string(sim_number) +
+      "_" + std::to_string(iter) + ".txt";
+    std::ofstream out(file_name.c_str());
+    for (const auto& k : current_sample) {
+      out << k.newick_tree << "\n";
+    }
+    out.close();
   }
 };

@@ -5,6 +5,8 @@
 #include "sim_pbd.h"
 #include "ltable.h"
 
+#include "L2newick.h"
+
 struct particle {
   param_set params_;
   double gamma;
@@ -15,6 +17,8 @@ struct particle {
 
   double weight = 1.0;
   double prob_prior;
+
+  std::string newick_tree;
 
   particle(prior prior_dist, rnd_t& rndgen) {
     params_ = prior_dist.gen_prior(rndgen);
@@ -115,6 +119,9 @@ struct particle {
           colless_stat_ltable s(ltable_);
           colless = static_cast<double>(s.colless());
           success = true;
+
+          newick_tree = ltable_to_newick(ltable_,
+                                         true);
         } else {
           num_lin = 1e6; // to trigger bad fit
         }

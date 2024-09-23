@@ -78,6 +78,10 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
 
    focal_analysis.iterate_first();
    update_output(res, focal_analysis.current_sample, 0);
+   focal_analysis.write_to_file(sim_number, 0,
+                                obs_gamma, obs_colless, obs_num_lin,
+                                bd_lambda, bd_mu);
+   focal_analysis.write_trees(sim_number, 0);
    focal_analysis.update_kernel(0);
 
    for (size_t i = 1; i < num_iterations; ++i) {
@@ -85,21 +89,14 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
      if (focal_analysis.accept_rate < limiting_accept_rate) break;
      update_output(res, focal_analysis.current_sample, i);
 
-     std::string file_name = "res_" + std::to_string(sim_number) +
-                              "_" + std::to_string(i) + ".txt";
-     std::ofstream out(file_name.c_str());
-     for (const auto& k : focal_analysis.current_sample) {
-        out << i << " ";
-        for (size_t j = 0; j < k.params_.size(); ++j) {
-            out << k.params_[j] << " ";
-        }
+     focal_analysis.write_to_file(sim_number, i,
+                                  obs_gamma, obs_colless, obs_num_lin,
+                                  bd_lambda, bd_mu);
+     focal_analysis.write_trees(sim_number, i);
 
-        out << k.gamma << " " << k.colless << " " <<
-           static_cast<double>(k.num_lin) << " " << k.weight << " " <<
-            obs_gamma << " " << obs_colless << " " << obs_num_lin << " "  <<
-               bd_lambda << " " << bd_mu << "\n";
-     }
-     out.close();
+
+
+
 
 
      focal_analysis.update_kernel(i);
