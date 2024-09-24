@@ -7,7 +7,8 @@
 \usage{
 mcmc_pbd(
   phy,
-  likelihood_function,
+  log_likelihood_function,
+  log_prior_function,
   parameters,
   logtransforms,
   iterations,
@@ -19,12 +20,6 @@ mcmc_pbd(
 }
 \arguments{
 \item{phy}{phylo       Vector of weights}
-
-\item{likelihood_function}{function    Function that calculates the
-likelihood of our diversification
-model, given the tree.
-function should be of the format
-function(parameters, phy).}
 
 \item{parameters}{vector      Initial parameters to start
 the chain.}
@@ -45,6 +40,12 @@ distribution, which is
 N(0, sigma).}
 
 \item{sim_number}{sim number}
+
+\item{likelihood_function}{function    Function that calculates the
+likelihood of our diversification
+model, given the tree.
+function should be of the format
+function(parameters, phy).}
 }
 \value{
 mcmc        An MCMC object, as used by the

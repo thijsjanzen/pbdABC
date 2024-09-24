@@ -32,7 +32,9 @@
 #'
 ################################################################################
 #' @export
-mcmc_pbd <- function(phy, likelihood_function,
+mcmc_pbd <- function(phy,
+                     log_likelihood_function,
+                     log_prior_function,
                      parameters, logtransforms, iterations,
                      burnin = round(iterations / 3),
                      thinning = 1,
@@ -61,7 +63,8 @@ mcmc_pbd <- function(phy, likelihood_function,
     }
   }
   # pre-compute current posterior probability
-  pp <- likelihood_function(parameters, phy)
+  pp <- log_prior_function(parameters) +
+        log_likelihood_function(parameters, phy)
 
   cat("\nGenerating Chain\n")
   cat("0--------25--------50--------75--------100\n")
@@ -85,7 +88,8 @@ mcmc_pbd <- function(phy, likelihood_function,
         # calculate the Hastings ratio
         hr            <- log(new_val / parameters[j])
         parameters[j] <- new_val
-        new_pp        <- likelihood_function(parameters, phy)
+        new_pp        <- log_prior_function(parameters) +
+                         log_likelihood_function(parameters, phy)
 
         #accept or reject
         if (is.finite(new_pp) &&
@@ -103,8 +107,10 @@ mcmc_pbd <- function(phy, likelihood_function,
         hr            <- 0.0
         parameters[j] <- new_val
 
-        if (parameters[j] >= 0 & parameters[1] > 0) {
-          new_pp        <- likelihood_function(parameters, phy)
+        prior_eval <- log_prior_function(parameters)
+
+        if (!is.na(prior_eval)) {
+          new_pp        <- prior_eval + log_likelihood_function(parameters, phy)
 
           #accept or reject
           if (is.finite(new_pp) &&
