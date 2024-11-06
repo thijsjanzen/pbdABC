@@ -37,7 +37,7 @@ perform_abc_par <- function(num_particles,
                       obs_colless,
                       obs_num_lin,
                       num_threads = 1,
-                      limiting_accept_rate = 1e-8,
+                      limiting_accept_rate = 1e-12,
                       sim_number,
                       bd_lambda = 0,
                       bd_mu = 0) {

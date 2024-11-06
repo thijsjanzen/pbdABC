@@ -35,6 +35,9 @@ struct analysis_par {
 
   double accept_rate;
 
+  bool blank_sheet;
+  size_t starting_iteration;
+
   std::vector<double> threshold;
   std::array<double, 5> sigmas;
 
@@ -352,5 +355,53 @@ struct analysis_par {
       out << k.newick_tree << "\n";
     }
     out.close();
+  }
+
+  void find_output(int sim_number) {
+    blank_sheet = true;
+
+    for (int iter = 100; iter >= 0; --iter) {
+      std::string file_name = "res_" + std::to_string(sim_number) +
+        "_" + std::to_string(iter) + ".txt";
+      std::ifstream in_file(file_name.c_str());
+
+      if (in_file.good()) {
+
+        std::cerr << "found previous output from iteration: " << iter << "\n";
+
+        current_sample.clear();
+
+        particle row_entry;
+        int focal_iter;
+        while(!in_file.eof()) {
+          in_file >>  focal_iter;
+          for (size_t i = 0; i < row_entry.params_.size(); ++i) {
+              in_file >> row_entry.params_[i];
+          }
+          // out << k.gamma << " " << k.colless << " " <<
+          // static_cast<double>(k.num_lin) << " " << k.weight << " " <<
+          //  obs_gamma << " " << obs_colless << " " << obs_num_lin << " "  <<
+          //    bd_lambda << " " << bd_mu << "\n";
+          in_file >> row_entry.gamma;
+          in_file >> row_entry.colless;
+          in_file >> row_entry.num_lin;
+          in_file >> row_entry.weight;
+          current_sample.push_back(row_entry);
+
+          // burn other entries
+          double temp;
+          for (int b = 0; b < 5; ++b) {
+            in_file >> temp;
+          }
+        }
+        current_sample.pop_back(); // last entry always duplicates
+        starting_iteration = iter + 1;
+        blank_sheet = false;
+
+        std::cerr << "read: " << current_sample.size() << "entries\n";
+
+        break;
+      }
+    }
   }
 };

@@ -48,7 +48,6 @@ inline void update_output(std::vector< std::array<double, 10>>& out,
                    int iteration) {
 
   for (const auto& i : gen) {
-
     std::array<double, 10> to_add;
     to_add[0] = static_cast<double>(iteration);
     for (size_t j = 0; j < i.params_.size(); ++j) {

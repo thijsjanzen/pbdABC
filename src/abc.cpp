@@ -74,32 +74,36 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
                                obs_num_lin,
                                limiting_accept_rate);
 
+   // check if is first!
+
+   focal_analysis.find_output(sim_number);
    std::vector< std::array<double, 10>> res;
 
-   focal_analysis.iterate_first();
-   update_output(res, focal_analysis.current_sample, 0);
-   focal_analysis.write_to_file(sim_number, 0,
-                                obs_gamma, obs_colless, obs_num_lin,
-                                bd_lambda, bd_mu);
-   focal_analysis.write_trees(sim_number, 0);
-   focal_analysis.update_kernel(0);
+   if (focal_analysis.blank_sheet) {
+     focal_analysis.iterate_first();
+     update_output(res, focal_analysis.current_sample, 0);
+     focal_analysis.write_to_file(sim_number, 0,
+                                  obs_gamma, obs_colless, obs_num_lin,
+                                  bd_lambda, bd_mu);
+     focal_analysis.write_trees(sim_number, 0);
+     focal_analysis.update_kernel(0);
+   }
 
-   for (size_t i = 1; i < num_iterations; ++i) {
+   size_t i = 1;
+   if (!focal_analysis.blank_sheet) i = focal_analysis.starting_iteration;
+
+   for (; i < num_iterations; ++i) {
      focal_analysis.iterate(i);
-     if (focal_analysis.accept_rate < limiting_accept_rate) break;
+
      update_output(res, focal_analysis.current_sample, i);
 
      focal_analysis.write_to_file(sim_number, i,
                                   obs_gamma, obs_colless, obs_num_lin,
                                   bd_lambda, bd_mu);
      focal_analysis.write_trees(sim_number, i);
-
-
-
-
-
-
      focal_analysis.update_kernel(i);
+
+     if (focal_analysis.accept_rate < limiting_accept_rate) break;
    }
 
    Rcpp::NumericMatrix out;
