@@ -21,7 +21,8 @@ perform_abc_par(
   limiting_accept_rate = 1e-12,
   sim_number,
   bd_lambda = 0,
-  bd_mu = 0
+  bd_mu = 0,
+  threshold_quantile = NA
 )
 }
 \arguments{
@@ -55,13 +56,20 @@ prior is used.}
 
 \item{num_threads}{number of threads}
 
-\item{limiting_accept_rate}{limiting accept rate}
+\item{limiting_accept_rate}{stop when the acceptance rate of a generation
+drops below this value}
 
 \item{sim_number}{sim number for Thijs}
 
 \item{bd_lambda}{lambda estimate using DDD::bd_ML}
 
 \item{bd_mu}{mu estimate using DDD::bd_ML}
+
+\item{threshold_quantile}{NA (default) uses the fixed threshold schedule
+10 * exp(-0.5 * (i - 1)). A value between 0 and 1 uses an adaptive
+threshold: each generation accepts particles whose distance is at most
+this quantile of the distances of the previous generation (0.5 is a
+common choice).}
 }
 \value{
 tibble

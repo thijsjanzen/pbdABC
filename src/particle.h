@@ -7,6 +7,8 @@
 
 #include "L2newick.h"
 
+#include <limits>
+
 struct particle {
   param_set params_;
   double gamma;
@@ -16,6 +18,7 @@ struct particle {
   bool success = false;
 
   double weight = 1.0;
+  double dist = std::numeric_limits<double>::max();  // distance to the data
   double prob_prior;
 
   std::string newick_tree;

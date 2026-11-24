@@ -34,6 +34,11 @@ struct analysis_par {
   const double max_lin;
   const int num_particles;
   const double limit_accept_rate;
+  // if in (0, 1): adaptive threshold, i.e. the acceptance threshold of each
+  // generation is this quantile of the distances of the previous generation.
+  // Otherwise the fixed schedule 10 * exp(-0.5 * (i - 1)) is used.
+  const double threshold_quantile;
+  double current_threshold = 0.0;
 
   double accept_rate;
 
@@ -58,7 +63,8 @@ struct analysis_par {
            double obs_gamma,
            double obs_colless,
            double obs_num_lin,
-           double limit_rate) :
+           double limit_rate,
+           double thresh_quantile = -1.0) :
     ref_gamma(obs_gamma),
     ref_colless(obs_colless),
     ref_num_lin(obs_num_lin),
@@ -66,7 +72,8 @@ struct analysis_par {
     min_lin(minimum_lineages),
     max_lin(maximum_lineages),
     num_particles(n),
-    limit_accept_rate(limit_rate) {
+    limit_accept_rate(limit_rate),
+    threshold_quantile(thresh_quantile) {
     rndgen_ = rnd_t();
     for (size_t i = 0; i < num_iterations; ++i) {
       threshold.push_back(10 * std::exp(-0.5 * (i - 1)));
@@ -79,6 +86,32 @@ struct analysis_par {
     } else {
       prior_dist = prior(means, use_inv_prior);
     }
+  }
+
+  bool adaptive_threshold() const {
+    return threshold_quantile > 0.0 && threshold_quantile < 1.0;
+  }
+
+  // distance of every particle in the current population to the data
+  void update_distances() {
+    for (auto& p : current_sample) p.dist = calc_dist(p);
+  }
+
+  // q-quantile (type 1, inverse empirical cdf) of the current distances
+  double distance_quantile(double q) const {
+    std::vector<double> d;
+    d.reserve(current_sample.size());
+    for (const auto& p : current_sample) d.push_back(p.dist);
+    if (d.empty()) return std::numeric_limits<double>::max();
+    size_t k = static_cast<size_t>(std::ceil(q * d.size()));
+    if (k > 0) k--;
+    std::nth_element(d.begin(), d.begin() + k, d.end());
+    return d[k];
+  }
+
+  double threshold_for(int iteration) const {
+    if (adaptive_threshold()) return distance_quantile(threshold_quantile);
+    return threshold[iteration];
   }
 
   std::vector<int> get_seeds(int num_seeds) {
@@ -157,6 +190,7 @@ struct analysis_par {
   //    Rcpp::Rcout << "current_accept_rate: " << accept_rate << "\n";
     }
 
+    update_distances();
     Rcpp::Rcout << "\n";
   }
 
@@ -169,7 +203,9 @@ struct analysis_par {
 
     int num_remaining = num_particles;
     accept_rate = 1.0;
-    Rcpp::Rcout << "iteration: " << iteration << "\n";
+    current_threshold = threshold_for(iteration);
+    Rcpp::Rcout << "iteration: " << iteration
+                << ", threshold: " << current_threshold << "\n";
     Rcpp::Rcout << "0--------25--------50--------75--------100\n";
     Rcpp::Rcout << "*";
     int updateFreq = num_particles / 20;
@@ -177,6 +213,7 @@ struct analysis_par {
 
     int prev_update = 0;
     int num_tried = 0;
+    int num_found = 0;  // particles accepted this generation (incl. surplus)
     while(new_sample.size() < num_particles) {
       for (size_t t = prev_update; t < new_sample.size(); ++t) {
         if (t % updateFreq == 0) {
@@ -217,7 +254,8 @@ struct analysis_par {
               found_particles[i].sim(crown_age, min_lin, max_lin);
               if (found_particles[i].success == true) {
                 double dist = calc_dist(found_particles[i]);
-                if (dist < threshold[iteration]) {
+                found_particles[i].dist = dist;
+                if (dist <= current_threshold) {
                   found_particles[i].update_weight(current_sample, rndgen2, prior_dist);
                 } else {
                   found_particles[i].success = false;
@@ -229,15 +267,18 @@ struct analysis_par {
           }
       });
 
-      int num_accepted = 0;
       for (const auto& i : found_particles) {
-        if (i.success && new_sample.size() < num_particles) {
-          new_sample.push_back(i);
-          num_accepted++;
+        if (i.success) {
+          num_found++;
+          if (new_sample.size() < num_particles) new_sample.push_back(i);
         }
       }
+      // acceptance rate over the whole generation: both numerator and
+      // denominator are cumulative (previously only the last batch's
+      // acceptances were divided by all tries, which made the rate look far
+      // lower than it was and stopped runs early)
       num_tried += loop_size;
-      accept_rate = 1.0 * (1 + num_accepted) / num_tried;
+      accept_rate = 1.0 * (1 + num_found) / num_tried;
       Rcpp::Rcout << "\ncurrent_accept_rate: " << accept_rate << "\n";
       if (accept_rate < limit_accept_rate) {
         break;
@@ -371,6 +412,7 @@ struct analysis_par {
           }
         }
         current_sample.pop_back(); // last entry always duplicates
+        update_distances();
         starting_iteration = iter + 1;
         blank_sheet = false;
 

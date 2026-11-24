@@ -29,7 +29,7 @@ test_abc_par(
 \item{max_lin}{maximum number of lineages}
 
 \item{lambdas}{vector of lambdas for exponential priors (5),
-order: l0, mu0, l1, mu1, compl_rate}
+order: l0, l1, mu0, mu1, compl_rate}
 
 \item{obs_gamma}{observed gamma value to fit on}
 

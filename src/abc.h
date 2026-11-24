@@ -79,6 +79,7 @@ struct analysis {
       if (new_particle.num_lin >= min_lin &&
           new_particle.num_lin <= max_lin) {
         new_particle.success = true;
+        new_particle.dist = calc_dist(new_particle);
         current_sample.push_back(new_particle);
       }
 
@@ -116,6 +117,7 @@ struct analysis {
           if (new_particle.success == true) {
 
             double dist = calc_dist(new_particle);
+            new_particle.dist = dist;
             if (dist < threshold[iteration]) {
               new_particle.update_weight(current_sample, rndgen_, prior_dist);
               new_sample.push_back(new_particle);

@@ -16,15 +16,20 @@
 #' @param sim_number internal value for Thijs
 #' @param bd_lambda bd lambda
 #' @param bd_mu bd mu
+#' @param limiting_accept_rate stop when the acceptance rate drops below this
+#' @param threshold_quantile if between 0 and 1, the acceptance threshold of
+#' each generation is this quantile of the distances of the previous
+#' generation (adaptive threshold); otherwise the fixed schedule is used.
 #' @export
 #' @description
 #' Fit to the data is assessed by the sum of differences for
 #' [gamma, colless, num_lineages], rescaled by the observed value, e.g.
-#' ((O-E)^2)/E, where O is the value of the proposed simulation and E is the
+#' ((O-E)^2)/|E|, where O is the value of the proposed simulation and E is the
 #' value of the empirical data (e.g. obs_gamma, obs_colless or obs_num_lineages).
-#' The acceptance threshold diminishes exponentially.
-perform_abc_rcpp_par <- function(num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, means, use_inv_prior, obs_gamma, obs_colless, obs_num_lin, sim_number, bd_lambda, bd_mu, limiting_accept_rate) {
-    .Call(`_pbdABC_perform_abc_rcpp_par`, num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, means, use_inv_prior, obs_gamma, obs_colless, obs_num_lin, sim_number, bd_lambda, bd_mu, limiting_accept_rate)
+#' The acceptance threshold either diminishes exponentially
+#' (10 * exp(-0.5 * (i - 1))) or is set adaptively (see threshold_quantile).
+perform_abc_rcpp_par <- function(num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, means, use_inv_prior, obs_gamma, obs_colless, obs_num_lin, sim_number, bd_lambda, bd_mu, limiting_accept_rate, threshold_quantile) {
+    .Call(`_pbdABC_perform_abc_rcpp_par`, num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, means, use_inv_prior, obs_gamma, obs_colless, obs_num_lin, sim_number, bd_lambda, bd_mu, limiting_accept_rate, threshold_quantile)
 }
 
 #' function to do abc using rcpp

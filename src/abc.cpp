@@ -28,13 +28,18 @@ size_t get_rcpp_num_threads_abc() {
 //' @param sim_number internal value for Thijs
 //' @param bd_lambda bd lambda
 //' @param bd_mu bd mu
+//' @param limiting_accept_rate stop when the acceptance rate drops below this
+//' @param threshold_quantile if between 0 and 1, the acceptance threshold of
+//' each generation is this quantile of the distances of the previous
+//' generation (adaptive threshold); otherwise the fixed schedule is used.
 //' @export
 //' @description
 //' Fit to the data is assessed by the sum of differences for
 //' [gamma, colless, num_lineages], rescaled by the observed value, e.g.
-//' ((O-E)^2)/E, where O is the value of the proposed simulation and E is the
+//' ((O-E)^2)/|E|, where O is the value of the proposed simulation and E is the
 //' value of the empirical data (e.g. obs_gamma, obs_colless or obs_num_lineages).
-//' The acceptance threshold diminishes exponentially.
+//' The acceptance threshold either diminishes exponentially
+//' (10 * exp(-0.5 * (i - 1))) or is set adaptively (see threshold_quantile).
 // [[Rcpp::export]]
 Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
                                          int num_iterations,
@@ -51,7 +56,8 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
                                          int sim_number,
                                          double bd_lambda,
                                          double bd_mu,
-                                         double limiting_accept_rate) {
+                                         double limiting_accept_rate,
+                                         double threshold_quantile) {
 
    auto num_threads = get_rcpp_num_threads_abc();
    auto global_control = tbb::global_control(tbb::global_control::max_allowed_parallelism, num_threads);
@@ -72,12 +78,13 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
                                obs_gamma,
                                obs_colless,
                                obs_num_lin,
-                               limiting_accept_rate);
+                               limiting_accept_rate,
+                               threshold_quantile);
 
    // check if is first!
 
    focal_analysis.find_output(sim_number);
-   std::vector< std::array<double, 10>> res;
+   std::vector< std::array<double, 11>> res;
 
    if (focal_analysis.blank_sheet) {
      focal_analysis.iterate_first();
@@ -90,7 +97,11 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
    }
 
    size_t i = 1;
-   if (!focal_analysis.blank_sheet) i = focal_analysis.starting_iteration;
+   if (!focal_analysis.blank_sheet) {
+     i = focal_analysis.starting_iteration;
+     // kernel widths are not stored in the output files
+     focal_analysis.update_kernel(i - 1);
+   }
 
    for (; i < num_iterations; ++i) {
      focal_analysis.iterate(i);
@@ -170,7 +181,7 @@ double test_abc_rcpp_par(int num_particles,
                                obs_num_lin,
                                1e-6);
 
-   std::vector< std::array<double, 10>> res;
+   std::vector< std::array<double, 11>> res;
 
    focal_analysis.iterate_first();
    update_output(res, focal_analysis.current_sample, 0);
@@ -239,7 +250,7 @@ Rcpp::NumericMatrix perform_abc_rcpp(int num_particles,
                            obs_colless,
                            obs_num_lin);
 
-   std::vector< std::array<double, 10>> res;
+   std::vector< std::array<double, 11>> res;
 
    focal_analysis.iterate_first();
    update_output(res, focal_analysis.current_sample, 0);

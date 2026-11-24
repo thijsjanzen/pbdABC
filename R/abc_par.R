@@ -16,7 +16,13 @@
 #' @param obs_colless observed colless value to fit on
 #' @param obs_num_lin observed number of lineages to fit on
 #' @param num_threads number of threads
-#' @param limiting_accept_rate limiting accept rate
+#' @param limiting_accept_rate stop when the acceptance rate of a generation
+#' drops below this value
+#' @param threshold_quantile NA (default) uses the fixed threshold schedule
+#' 10 * exp(-0.5 * (i - 1)). A value between 0 and 1 uses an adaptive
+#' threshold: each generation accepts particles whose distance is at most
+#' this quantile of the distances of the previous generation (0.5 is a
+#' common choice).
 #' @param sim_number sim number for Thijs
 #' @param bd_lambda lambda estimate using DDD::bd_ML
 #' @param bd_mu mu estimate using DDD::bd_ML
@@ -40,7 +46,12 @@ perform_abc_par <- function(num_particles,
                       limiting_accept_rate = 1e-12,
                       sim_number,
                       bd_lambda = 0,
-                      bd_mu = 0) {
+                      bd_mu = 0,
+                      threshold_quantile = NA) {
+  if (!is.na(threshold_quantile) &&
+      (threshold_quantile <= 0 || threshold_quantile >= 1)) {
+    stop("threshold_quantile should be NA or between 0 and 1")
+  }
   RcppParallel::setThreadOptions(numThreads = num_threads)
   res <- perform_abc_rcpp_par(num_particles,
                               num_iterations,
@@ -57,10 +68,12 @@ perform_abc_par <- function(num_particles,
                               sim_number,
                               bd_lambda,
                               bd_mu,
-                              limiting_accept_rate)
+                              limiting_accept_rate,
+                              ifelse(is.na(threshold_quantile), -1,
+                                     threshold_quantile))
 
   colnames(res) <- c("iter", "lambda0", "lambda1", "mu0", "mu1", "compl_rate",
-                     "gamma", "colless", "num_lin", "weight")
+                     "gamma", "colless", "num_lin", "weight", "dist")
   res <- tibble::as_tibble(res)
 
   return(res)
