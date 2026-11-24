@@ -23,6 +23,11 @@
 #' threshold: each generation accepts particles whose distance is at most
 #' this quantile of the distances of the previous generation (0.5 is a
 #' common choice).
+#' @param kernel_scale new particles are proposed by perturbing particles of
+#' the previous generation with a multivariate normal kernel on the log scale,
+#' whose covariance is kernel_scale times the weighted covariance of that
+#' generation. 2 (default) follows Beaumont et al. (2009); smaller values take
+#' smaller steps and usually accept more proposals.
 #' @param sim_number sim number for Thijs
 #' @param bd_lambda lambda estimate using DDD::bd_ML
 #' @param bd_mu mu estimate using DDD::bd_ML
@@ -47,10 +52,15 @@ perform_abc_par <- function(num_particles,
                       sim_number,
                       bd_lambda = 0,
                       bd_mu = 0,
-                      threshold_quantile = NA) {
+                      threshold_quantile = NA,
+                      kernel_scale = 2) {
   if (!is.na(threshold_quantile) &&
       (threshold_quantile <= 0 || threshold_quantile >= 1)) {
     stop("threshold_quantile should be NA or between 0 and 1")
+  }
+  if (!is.numeric(kernel_scale) || length(kernel_scale) != 1 ||
+      !(kernel_scale > 0)) {
+    stop("kernel_scale should be a single positive number")
   }
   RcppParallel::setThreadOptions(numThreads = num_threads)
   res <- perform_abc_rcpp_par(num_particles,
@@ -70,7 +80,8 @@ perform_abc_par <- function(num_particles,
                               bd_mu,
                               limiting_accept_rate,
                               ifelse(is.na(threshold_quantile), -1,
-                                     threshold_quantile))
+                                     threshold_quantile),
+                              kernel_scale)
 
   colnames(res) <- c("iter", "lambda0", "lambda1", "mu0", "mu1", "compl_rate",
                      "gamma", "colless", "num_lin", "weight", "dist")

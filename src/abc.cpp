@@ -32,6 +32,9 @@ size_t get_rcpp_num_threads_abc() {
 //' @param threshold_quantile if between 0 and 1, the acceptance threshold of
 //' each generation is this quantile of the distances of the previous
 //' generation (adaptive threshold); otherwise the fixed schedule is used.
+//' @param kernel_scale new particles are proposed with a multivariate normal
+//' kernel on the log-parameters, with covariance kernel_scale times the
+//' weighted covariance of the current population.
 //' @export
 //' @description
 //' Fit to the data is assessed by the sum of differences for
@@ -57,7 +60,8 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
                                          double bd_lambda,
                                          double bd_mu,
                                          double limiting_accept_rate,
-                                         double threshold_quantile) {
+                                         double threshold_quantile,
+                                         double kernel_scale) {
 
    auto num_threads = get_rcpp_num_threads_abc();
    auto global_control = tbb::global_control(tbb::global_control::max_allowed_parallelism, num_threads);
@@ -79,7 +83,8 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
                                obs_colless,
                                obs_num_lin,
                                limiting_accept_rate,
-                               threshold_quantile);
+                               threshold_quantile,
+                               kernel_scale);
 
    // check if is first!
 

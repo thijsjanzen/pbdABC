@@ -22,7 +22,8 @@ perform_abc_par(
   sim_number,
   bd_lambda = 0,
   bd_mu = 0,
-  threshold_quantile = NA
+  threshold_quantile = NA,
+  kernel_scale = 2
 )
 }
 \arguments{
@@ -70,6 +71,12 @@ drops below this value}
 threshold: each generation accepts particles whose distance is at most
 this quantile of the distances of the previous generation (0.5 is a
 common choice).}
+
+\item{kernel_scale}{new particles are proposed by perturbing particles of
+the previous generation with a multivariate normal kernel on the log scale,
+whose covariance is kernel_scale times the weighted covariance of that
+generation. 2 (default) follows Beaumont et al. (2009); smaller values take
+smaller steps and usually accept more proposals.}
 }
 \value{
 tibble

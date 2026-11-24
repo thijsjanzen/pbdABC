@@ -138,7 +138,7 @@ struct analysis {
 
 
   void update_kernel() {
-    rndgen_.update_sigmas(compute_kernel_sigmas(current_sample));
+    rndgen_.update_kernel(compute_kernel(current_sample, 2.0));
   }
 
   double calc_dist(const particle& p) {

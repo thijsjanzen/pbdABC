@@ -37,11 +37,16 @@ struct particle {
   particle(const particle& other) = default;
   particle& operator=(const particle& other) = default;
 
-  // Perturb all parameters jointly with independent normal steps on the log
-  // scale, so the transition density is the product computed in prob_perturb.
+  // Perturb all parameters jointly on the log scale with a correlated
+  // multivariate normal step (covariance = kernel_L kernel_L^T).
   void perturb(rnd_t& rndgen) {
+    auto step = rndgen.kernel_step();
     for (size_t i = 0; i < params_.size(); ++i) {
-      params_[i] = rndgen.perturb_particle_val(params_[i], i);
+      double new_val = std::exp(std::log(params_[i]) + step[i]);
+      if (std::isinf(new_val)) new_val = 1e12;
+      // zero is deadly, let's use small, but not toooo small.
+      if (new_val <= 0.0) new_val = 10 * std::numeric_limits<double>::min();
+      params_[i] = new_val;
     }
     return;
   }
@@ -49,16 +54,13 @@ struct particle {
   double prob_perturb(const particle& other,
                       const rnd_t& rndgen) {
 
-    // Density of moving from 'other' to this particle in log-parameter space:
-    // product of independent normal densities, accumulated as a log sum.
-    const double log_2pi = std::log(2.0 * 3.141592653589793238);
-    double log_k = 0.0;
-    for (size_t i = 0; i < other.params_.size(); ++i) {
-      double sigma = rndgen.kernel_sigmas[i];
-      double d = std::log(params_[i]) - std::log(other.params_[i]);
-      log_k += -0.5 * (d * d) / (sigma * sigma) - std::log(sigma) - 0.5 * log_2pi;
+    // Density of moving from 'other' to this particle in log-parameter space,
+    // under the multivariate normal kernel.
+    std::array<double, 5> d;
+    for (size_t i = 0; i < 5; ++i) {
+      d[i] = std::log(params_[i]) - std::log(other.params_[i]);
     }
-    return std::exp(log_k);
+    return std::exp(rndgen.kernel_log_density(d));
   }
 
   bool pass_prior(const prior& prior_dist) {
@@ -152,31 +154,73 @@ struct particle {
   }
 };
 
-// Beaumont et al. (2009): kernel variance = 2 * weighted variance of the
-// current population (here on the log scale). Returns standard deviations.
-inline std::array<double, 5> compute_kernel_sigmas(const std::vector<particle>& sample) {
-  std::array<double, 5> sigmas = {1.0, 1.0, 1.0, 1.0, 1.0};
-  if (sample.empty()) return sigmas;
+// Cholesky factorisation of a symmetric 5x5 matrix A + jitter * I.
+// Returns false if the matrix is not (numerically) positive definite.
+inline bool cholesky_5(const kernel_matrix& A, double jitter, kernel_matrix* L) {
+  kernel_matrix out{};
+  for (size_t i = 0; i < 5; ++i) {
+    for (size_t j = 0; j <= i; ++j) {
+      double s = A[i][j] + (i == j ? jitter : 0.0);
+      for (size_t k = 0; k < j; ++k) s -= out[i][k] * out[j][k];
+      if (i == j) {
+        if (!(s > 0.0) || !std::isfinite(s)) return false;
+        out[i][i] = std::sqrt(s);
+      } else {
+        out[i][j] = s / out[j][j];
+      }
+    }
+  }
+  *L = out;
+  return true;
+}
+
+// Multivariate normal kernel with covariance scale * (weighted covariance of
+// the log-parameters of the current population); scale = 2 follows Beaumont
+// et al. (2009) / Filippi et al. (2013). Returns the Cholesky factor.
+inline kernel_matrix compute_kernel(const std::vector<particle>& sample,
+                                    double scale = 2.0) {
+  kernel_matrix L = rnd_t::identity_kernel();
+  if (sample.size() < 2) return L;
 
   double sum_w = 0.0;
   for (const auto& p : sample) sum_w += p.weight;
   const bool use_weights = sum_w > 0.0 && std::isfinite(sum_w);
+  auto w = [&](const particle& p) {
+    return use_weights ? p.weight / sum_w : 1.0 / sample.size();
+  };
 
-  for (size_t j = 0; j < 5; ++j) {
-    double mean = 0.0;
-    for (const auto& p : sample) {
-      double w = use_weights ? p.weight / sum_w : 1.0 / sample.size();
-      mean += w * std::log(p.params_[j]);
-    }
-    double var = 0.0;
-    for (const auto& p : sample) {
-      double w = use_weights ? p.weight / sum_w : 1.0 / sample.size();
-      double d = std::log(p.params_[j]) - mean;
-      var += w * d * d;
-    }
-    double s = std::sqrt(2.0 * var);
-    if (!std::isfinite(s) || s < 1e-6) s = 1e-6;  // avoid a degenerate kernel
-    sigmas[j] = s;
+  std::array<double, 5> mean{};
+  for (const auto& p : sample) {
+    for (size_t j = 0; j < 5; ++j) mean[j] += w(p) * std::log(p.params_[j]);
   }
-  return sigmas;
+
+  kernel_matrix cov{};
+  for (const auto& p : sample) {
+    std::array<double, 5> d;
+    for (size_t j = 0; j < 5; ++j) d[j] = std::log(p.params_[j]) - mean[j];
+    for (size_t j = 0; j < 5; ++j) {
+      for (size_t k = 0; k <= j; ++k) cov[j][k] += w(p) * d[j] * d[k];
+    }
+  }
+  double max_diag = 1e-12;
+  for (size_t j = 0; j < 5; ++j) {
+    for (size_t k = 0; k <= j; ++k) {
+      cov[j][k] *= scale;
+      cov[k][j] = cov[j][k];
+      if (!std::isfinite(cov[j][k])) return L;  // fall back to identity
+    }
+    if (cov[j][j] < 1e-12) cov[j][j] = 1e-12;   // avoid a degenerate kernel
+    max_diag = std::max(max_diag, cov[j][j]);
+  }
+
+  // a (near-)singular covariance, e.g. with few distinct particles, gets a
+  // little jitter on the diagonal
+  for (double jitter : {0.0, 1e-10, 1e-8, 1e-6, 1e-4, 1e-2}) {
+    if (cholesky_5(cov, jitter * max_diag, &L)) return L;
+  }
+
+  // last resort: diagonal kernel with the same marginal variances
+  L = kernel_matrix{};
+  for (size_t j = 0; j < 5; ++j) L[j][j] = std::sqrt(cov[j][j]);
+  return L;
 }

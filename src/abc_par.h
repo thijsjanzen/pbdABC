@@ -38,6 +38,9 @@ struct analysis_par {
   // generation is this quantile of the distances of the previous generation.
   // Otherwise the fixed schedule 10 * exp(-0.5 * (i - 1)) is used.
   const double threshold_quantile;
+  // perturbation kernel covariance = kernel_scale * weighted covariance of
+  // the log-parameters of the current population
+  const double kernel_scale;
   double current_threshold = 0.0;
 
   double accept_rate;
@@ -47,7 +50,6 @@ struct analysis_par {
   size_t starting_iteration;
 
   std::vector<double> threshold;
-  std::array<double, 5> sigmas;
 
   prior prior_dist;
 
@@ -64,7 +66,8 @@ struct analysis_par {
            double obs_colless,
            double obs_num_lin,
            double limit_rate,
-           double thresh_quantile = -1.0) :
+           double thresh_quantile = -1.0,
+           double k_scale = 2.0) :
     ref_gamma(obs_gamma),
     ref_colless(obs_colless),
     ref_num_lin(obs_num_lin),
@@ -73,7 +76,8 @@ struct analysis_par {
     max_lin(maximum_lineages),
     num_particles(n),
     limit_accept_rate(limit_rate),
-    threshold_quantile(thresh_quantile) {
+    threshold_quantile(thresh_quantile),
+    kernel_scale(k_scale) {
     rndgen_ = rnd_t();
     for (size_t i = 0; i < num_iterations; ++i) {
       threshold.push_back(10 * std::exp(-0.5 * (i - 1)));
@@ -329,13 +333,14 @@ struct analysis_par {
   }
 
   void update_kernel(size_t iter) {
-      // kernel SD = sqrt(2 * weighted variance) of log-parameters
-      sigmas = compute_kernel_sigmas(current_sample);
-      std::cerr << "iteration:" << iter << " ";
+      // multivariate normal kernel on log-parameters with covariance
+      // kernel_scale * weighted covariance of the current population
+      rndgen_.update_kernel(compute_kernel(current_sample, kernel_scale));
+      auto sds = rndgen_.kernel_sds();
+      std::cerr << "iteration:" << iter << " kernel sd:";
       for (size_t j = 0; j < 5; ++j) {
-        std::cerr << sigmas[j] << " ";
+        std::cerr << " " << sds[j];
       } std::cerr << "\n";
-      rndgen_.update_sigmas(sigmas);
   }
 
   void write_to_file(int sim_number,

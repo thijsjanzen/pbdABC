@@ -21,7 +21,8 @@ perform_abc_rcpp_par(
   bd_lambda,
   bd_mu,
   limiting_accept_rate,
-  threshold_quantile
+  threshold_quantile,
+  kernel_scale
 )
 }
 \arguments{
@@ -57,6 +58,10 @@ l0, l1, mu0, mu1, compl_rate}
 \item{threshold_quantile}{if between 0 and 1, the acceptance threshold of
 each generation is this quantile of the distances of the previous
 generation (adaptive threshold); otherwise the fixed schedule is used.}
+
+\item{kernel_scale}{new particles are proposed with a multivariate normal
+kernel on the log-parameters, with covariance kernel_scale times the
+weighted covariance of the current population.}
 }
 \description{
 Fit to the data is assessed by the sum of differences for
