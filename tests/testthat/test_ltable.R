@@ -5,9 +5,8 @@ test_that("usage", {
   test_result <- function(focal_tree) {
     tree1 <- treestats::l_to_phylo(focal_tree$ltable, drop_extinct = TRUE)
     tree2 <- treestats::l_to_phylo(focal_tree$ltable_dropped, drop_extinct = TRUE)
-    s1 <- treestats::calc_all_stats(tree1)
-    s2 <- treestats::calc_all_stats(tree2)
-    testthat::expect_equal(s1, s2)
+    testthat::expect_true(ape::all.equal.phylo(tree1, tree2,
+                                               use.tip.label = FALSE))
 
     g1 <- treestats::gamma_statistic(tree1)
     g2 <- treestats::gamma_statistic(tree2)

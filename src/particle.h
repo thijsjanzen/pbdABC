@@ -101,16 +101,27 @@ struct particle {
 
     sim_pbd sim(params_, crown_age, max_lin * 10);
     sim.run();
-    num_lin = sim.num_good_species;
 
     colless = 1e6; // default bad values
     gamma = 1e6;
     success = false;
+    num_lin = 1e6;
 
-    if (sim.status == "success" &&
-        num_lin    >= min_lin   &&
-        num_lin    <= max_lin) {
+    if (sim.status != "success") return;
 
+    // the number of species in the reconstructed tree (= number of tips, one
+    // sampled lineage per extant species), which is what an observed tree
+    // gives; the number of good lineages is not the same thing. After
+    // select_random, the sampled tips are exactly the rows still alive.
+    int num_tips = 0;
+    for (const auto& row : sim.L) {
+      if (row[species_property::death_time] < 0) num_tips++;
+    }
+    num_lin = num_tips;
+
+    if (num_lin    >= min_lin   &&
+        num_lin    <= max_lin   &&
+        num_lin    >= 2) {
         auto ltable_ = drop_extinct(sim.L);
         bool crowns_alive = ltable_[0][species_property::death_time] < 0 &&
                             ltable_[1][species_property::death_time] < 0;

@@ -13,6 +13,8 @@
 #include "particle.h"
 
 #include <mutex>
+#include <cstdint>
+#include <random>
 
 #include <RcppParallel.h>
 
@@ -36,6 +38,7 @@ struct analysis_par {
   double accept_rate;
 
   bool blank_sheet;
+  bool stopped_early = false;
   size_t starting_iteration;
 
   std::vector<double> threshold;
@@ -91,7 +94,6 @@ struct analysis_par {
     int num_remaining = num_particles - current_sample.size();
     accept_rate = 1.0;
 
-    const int num_seeds = 20;
 
     Rcpp::Rcout << "0--------25--------50--------75--------100\n";
     Rcpp::Rcout << "*";
@@ -115,9 +117,7 @@ struct analysis_par {
 
       std::cerr << "\nloop_size: " << loop_size << " " << current_sample.size() << "\n";
 
-      int seed_index = 0;
-      std::mutex mutex;
-      std::vector< int > seed_values = get_seeds(num_seeds);
+      const uint64_t batch_seed = rndgen_.rndgen_();
 
       std::vector< particle > found_particles(loop_size);
 
@@ -125,18 +125,12 @@ struct analysis_par {
         tbb::blocked_range<unsigned>(0, loop_size),
         [&](const tbb::blocked_range<unsigned>& r) {
 
-          rnd_t rndgen2(seed_values[seed_index],
-                                   rndgen_);
-          {
-            std::lock_guard<std::mutex> m(mutex);
-            seed_index++;
-            if (seed_index >= num_seeds) { // just in case.
-              for (int i = 0; i < num_seeds; ++i) {
-                seed_values[i] = rndgen2.random_number(INT_MAX);
-              }
-              seed_index = 0;
-            }
-          }
+          // independent stream per block: seed depends on the batch seed and
+          // the block start, so no shared state between threads.
+          std::seed_seq sseq{batch_seed, static_cast<uint64_t>(r.begin())};
+          std::array<uint64_t, 1> block_seed;
+          sseq.generate(block_seed.begin(), block_seed.end());
+          rnd_t rndgen2(block_seed[0], rndgen_);
 
           for (unsigned i = r.begin(); i < r.end(); ++i) {
 
@@ -175,7 +169,6 @@ struct analysis_par {
 
     int num_remaining = num_particles;
     accept_rate = 1.0;
-    const int num_seeds = 20;
     Rcpp::Rcout << "iteration: " << iteration << "\n";
     Rcpp::Rcout << "0--------25--------50--------75--------100\n";
     Rcpp::Rcout << "*";
@@ -201,9 +194,7 @@ struct analysis_par {
       std::cerr << "\nloop_size: " << loop_size << "\n";
 
 
-      int seed_index = 0;
-      std::mutex mutex;
-      std::vector< int > seed_values = get_seeds(num_seeds);
+      const uint64_t batch_seed = rndgen_.rndgen_();
 
       std::vector< particle > found_particles(loop_size);
 
@@ -211,18 +202,12 @@ struct analysis_par {
         tbb::blocked_range<unsigned>(0, loop_size),
         [&](const tbb::blocked_range<unsigned>& r) {
 
-          rnd_t rndgen2(seed_values[seed_index],
-                                   rndgen_);
-          {
-            std::lock_guard<std::mutex> m(mutex);
-            seed_index++;
-            if (seed_index >= num_seeds) { // just in case.
-              for (int i = 0; i < num_seeds; ++i) {
-                seed_values[i] = rndgen2.random_number(INT_MAX);
-              }
-              seed_index = 0;
-            }
-          }
+          // independent stream per block: seed depends on the batch seed and
+          // the block start, so no shared state between threads.
+          std::seed_seq sseq{batch_seed, static_cast<uint64_t>(r.begin())};
+          std::array<uint64_t, 1> block_seed;
+          sseq.generate(block_seed.begin(), block_seed.end());
+          rnd_t rndgen2(block_seed[0], rndgen_);
           std::discrete_distribution pick_particle(weights.begin(), weights.end());
 
           for (unsigned i = r.begin(); i < r.end(); ++i) {
@@ -259,10 +244,22 @@ struct analysis_par {
       }
     }
 
+    if (new_sample.empty()) {
+      // nothing accepted: keep the previous population, caller stops
+      Rcpp::Rcout << "\nno particles accepted, stopping\n";
+      stopped_early = true;
+      return;
+    }
+
     current_sample = new_sample;
     double sum_weights = 0.0;
     for (const auto& i : current_sample) {
       sum_weights += i.weight;
+    }
+    if (!(sum_weights > 0.0) || !std::isfinite(sum_weights)) {
+      Rcpp::Rcout << "\ninvalid particle weights, stopping\n";
+      stopped_early = true;
+      return;
     }
 
     double factor = 1.0 / sum_weights;
@@ -280,7 +277,7 @@ struct analysis_par {
     double d2 = (p.colless - ref_colless);
     double d3 = (p.num_lin- ref_num_lin);
 
-    static double abs_ref_gamma = std::abs(ref_gamma);
+    const double abs_ref_gamma = std::abs(ref_gamma);
 
     std::array<double, 3> diff;
     diff[0] = (d1 * d1) * 1.0 / abs_ref_gamma;

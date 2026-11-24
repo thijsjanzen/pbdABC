@@ -145,7 +145,7 @@ struct analysis {
     double d3 = (p.num_lin- ref_num_lin);
 
     std::array<double, 3> diff;
-    diff[0] = (d1 * d1) / ref_gamma;
+    diff[0] = (d1 * d1) / std::abs(ref_gamma);
     diff[1] = (d2 * d2) / ref_colless;
     diff[2] = (d3 * d3) * 1.0 / ref_num_lin;
 

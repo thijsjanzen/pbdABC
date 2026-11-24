@@ -94,6 +94,7 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
 
    for (; i < num_iterations; ++i) {
      focal_analysis.iterate(i);
+     if (focal_analysis.stopped_early) break;
 
      update_output(res, focal_analysis.current_sample, i);
 
@@ -310,7 +311,7 @@ Rcpp::List test_simulations(double birth,
                              double death,
                              double crown_age) {
 
-   sim_pbd sim({birth, death, 0.0, 0.0, 1e6}, // l0, mu0, l1, mu1, tau
+   sim_pbd sim({birth, 0.0, death, 0.0, 1e6}, // l0, l1, mu0, mu1, compl_rate
                crown_age, 300 * 10);
 
    bool keep_running = true;
