@@ -192,11 +192,12 @@ struct sim_pbd {
   event draw_event() {
     std::uniform_real_distribution<double> d(0.0, total_rate);
     auto r = d(rndgen_);
-    r -= fast_dist_compl.sum_val();
-    if (r <= 0.0) return completion;
+    // strict comparisons: an event type with zero total rate is never chosen
+    const double compl_sum = fast_dist_compl.sum_val();
+    if (r < compl_sum) return completion;
 
-    r -= fast_dist_spec.sum_val();
-    if (r <= 0.0) return speciation;
+    const double spec_sum = fast_dist_spec.sum_val();
+    if (r < compl_sum + spec_sum) return speciation;
 
     return extinction;
   }
@@ -233,11 +234,9 @@ struct sim_pbd {
       crown_count[1]--;
     }
 
-    // recompute the cdf from 'index' onward; N must be the FULL size, not the
-    // size of the tail (fast_dist resizes its cdf to N).
-    fast_dist_ext.mutate_transform_partial_n(pop_ext.begin() + index, pop_ext.size(), index);
-    fast_dist_spec.mutate_transform_partial_n(pop_spec.begin() + index, pop_spec.size(), index);
-    fast_dist_compl.mutate_transform_partial_n(pop_compl.begin() + index, pop_compl.size(), index);
+    fast_dist_ext.update(index, pop_ext[index]);
+    fast_dist_spec.update(index, pop_spec[index]);
+    fast_dist_compl.update(index, pop_compl[index]);
   }
 
   void do_completion() {
@@ -255,9 +254,9 @@ struct sim_pbd {
     num_incipient_species--;
 
 
-    fast_dist_ext.mutate_transform_partial_n(pop_ext.begin() + index, pop_ext.size(), index);
-    fast_dist_spec.mutate_transform_partial_n(pop_spec.begin() + index, pop_spec.size(), index);
-    fast_dist_compl.mutate_transform_partial_n(pop_compl.begin() + index, pop_compl.size(), index);
+    fast_dist_ext.update(index, pop_ext[index]);
+    fast_dist_spec.update(index, pop_spec[index]);
+    fast_dist_compl.update(index, pop_compl[index]);
   }
 
   void do_speciation() {

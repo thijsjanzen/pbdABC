@@ -1,7 +1,10 @@
 #pragma once
 #include <algorithm>
-#include <vector>
 #include <array>
+#include <cmath>
+#include <numeric>
+#include <unordered_map>
+#include <vector>
 
 
 using ltable = std::vector< std::array<double, 4>>;
@@ -29,93 +32,116 @@ inline std::vector<double> brts_from_ltable(ltable L) {
 }
 
 
+// Reconstructed tree: drop extinct lineages from an L table.
+//
+// When a lineage goes extinct but has surviving descendants, the descendant
+// branch that split off from it last continues its identity (after that last
+// split the lineage's own branch dies, so the node disappears from the
+// reconstructed tree). So every extant lineage carries the identity (id,
+// birth time and parent) of the oldest ancestor it continues.
+//
+// Single pass from youngest to oldest lineage plus one sort: O(n log n).
+// (The previous version re-sorted the table once per replaced row, which was
+// O(n^2 log n).) Rows have columns birth_time (age), parent, id, death_time
+// (-1 if extant). Returns an empty table if fewer than two lineages survive.
 inline ltable drop_extinct(const ltable& L) {
+  using sp = species_property;
+  const size_t n = L.size();
+  const size_t none = n;
+
+  // row of each id
+  std::unordered_map<long, size_t> row_of;
+  row_of.reserve(2 * n);
+  for (size_t i = 0; i < n; ++i) row_of[std::lround(L[i][sp::id])] = i;
+  auto parent_row = [&](size_t i) {
+    auto it = row_of.find(std::lround(L[i][sp::parent]));
+    return it == row_of.end() ? none : it->second;
+  };
+
+  // youngest first (smallest age), so all children of a lineage are visited
+  // before the lineage itself; ties (the two crown lineages) are broken by
+  // row, later rows first, since children are always appended after parents
+  std::vector<size_t> order(n);
+  std::iota(order.begin(), order.end(), 0);
+  std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+    if (L[a][sp::birth_time] != L[b][sp::birth_time]) {
+      return L[a][sp::birth_time] < L[b][sp::birth_time];
+    }
+    return a > b;
+  });
+
+  // carrier[i]: the extant row that continues lineage i (none if lineage i
+  // has no surviving descendants); latest_child[i]: its youngest child with
+  // surviving descendants
+  std::vector<size_t> carrier(n, none);
+  std::vector<size_t> latest_child(n, none);
+  for (size_t i : order) {
+    if (L[i][sp::death_time] < 0) {
+      carrier[i] = i;
+    } else if (latest_child[i] != none) {
+      carrier[i] = carrier[latest_child[i]];
+    }
+    if (carrier[i] == none) continue;
+    const size_t p = parent_row(i);
+    if (p != none) {
+      size_t& lc = latest_child[p];
+      if (lc == none || L[i][sp::birth_time] < L[lc][sp::birth_time]) lc = i;
+    }
+  }
+
+  // for each extant row: the oldest ancestor whose identity it carries
+  std::vector<size_t> top(n, none);
+  for (size_t y = 0; y < n; ++y) {
+    if (carrier[y] != y) continue;
+    size_t a = y;
+    for (size_t p = parent_row(a); p != none && carrier[p] == y; p = parent_row(a)) {
+      a = p;
+    }
+    top[y] = a;
+  }
+
+  // one row per extant lineage, with the identity it carries
+  struct entry { std::array<double, 4> row; size_t top_row; };
+  std::vector<entry> rows;
+  for (size_t y = 0; y < n; ++y) {
+    if (top[y] == none) continue;
+    const size_t a = top[y];
+    const size_t p = parent_row(a);
+    // the parent lineage is continued by carrier[p], under that row's identity
+    const double parent_id = p == none ? 0.0 : L[top[carrier[p]]][sp::id];
+    rows.push_back({{L[a][sp::birth_time], parent_id, L[a][sp::id],
+                     L[y][sp::death_time]}, a});
+  }
+  if (rows.size() < 2) return ltable();
+
+  // oldest first; the two crown lineages (equal age) in their original order
+  std::sort(rows.begin(), rows.end(), [](const entry& a, const entry& b) {
+    if (a.row[sp::birth_time] != b.row[sp::birth_time]) {
+      return a.row[sp::birth_time] > b.row[sp::birth_time];
+    }
+    return a.top_row < b.top_row;
+  });
+
+  // renumber ids 1..m in order of birth, keeping the sign (crown side)
+  std::unordered_map<long, double> new_id;
+  new_id.reserve(2 * rows.size());
   ltable out;
-  out.reserve(L.size() - 2);
-  for (size_t i = 0; i < L.size(); ++i) {
-    if (L[i][species_property::death_time] < 0) {
-      out.push_back(L[i]);
-    }
+  out.reserve(rows.size());
+  for (size_t i = 0; i < rows.size(); ++i) {
+    const double old_id = rows[i].row[sp::id];
+    const double id_i = old_id < 0 ? -static_cast<double>(i + 1)
+                                   : static_cast<double>(i + 1);
+    new_id[std::lround(old_id)] = id_i;
+    out.push_back(rows[i].row);
+    out.back()[sp::id] = id_i;
+  }
+  for (auto& r : out) {
+    auto it = new_id.find(std::lround(r[sp::parent]));
+    r[sp::parent] = it == new_id.end() ? 0.0 : it->second;
   }
 
-  // sort by branching time:
-  sort_by_time(out);
-
-  // now we have a broken Ltable, we need to fill in parents of parents
-  for (int i = out.size() - 1; i >= 2; ) {
-    auto parent = out[i][species_property::parent];
-
-    if (parent == 0) break; // we are at the root.
-
-    bool parent_found = false;
-
-    for (size_t j = 0; j < i; ++j) {
-      if (out[j][species_property::id] == parent) {
-        parent_found = true;
-        break;
-      }
-    }
-    if (!parent_found) {
-      size_t j = 0;
-      for (; j < L.size(); ++j) {
-        if (L[j][species_property::id] == parent) {
-          break;
-        }
-      }
-      auto old_id = out[i][species_property::id];
-
-      out[i][species_property::parent]     = L[j][species_property::parent];
-      out[i][species_property::birth_time] = L[j][species_property::birth_time];
-      out[i][species_property::id]         = L[j][species_property::id];
-
-      auto new_id = out[i][species_property::id];
-
-      for (size_t k = i; k < out.size(); ++k) {
-        if (out[k][species_property::parent] == old_id)
-          out[k][species_property::parent] = new_id;
-      }
-    } else {
-      --i;
-    }
-
-    sort_by_time(out);
-  }
-
- // out[0] = L[0];
- // out[1] = L[1]; // to avoid sorting effects
-
-  // and now we need to renumber to ensure consistent numbering
-  for (int i = 0; i < out.size(); ++i) {
-    auto id = std::abs(out[i][species_property::id]);
-    auto old_id = out[i][species_property::id];
-    if (id != (i + 1)) {
-      int new_id = i + 1;
-      if (out[i][species_property::id] < 0) new_id *= -1;
-
-      out[i][species_property::id] = new_id;
-
-      for (size_t j = i; j < out.size(); ++j) {
-        if (out[j][species_property::parent] == old_id) {
-          out[j][species_property::parent] = new_id;
-        }
-      }
-    }
-  }
-
-  // now there might still be extinct species
-  bool found_extinct = false;
-  for (const auto& i : out) {
-    if (i[species_property::death_time] > 0) {
-      found_extinct = true;
-      break;
-    }
-  }
-  if (found_extinct) {
-    out = drop_extinct(out);
-  }
-
-  out[1][species_property::parent] = out[0][species_property::id];
-  out[0][species_property::parent] = 0;
+  out[1][sp::parent] = out[0][sp::id];
+  out[0][sp::parent] = 0;
 
   return out;
 }

@@ -28,7 +28,10 @@ Rcpp::List sim_pbd_cpp(double la0,
     }
   }
 
-  auto ltable_ = drop_extinct(sim.L);
+  // the reconstructed tree only exists for a successful simulation (a failed
+  // one is not even converted to ages); otherwise return an empty table
+  ltable ltable_;
+  if (sim.status == "success") ltable_ = drop_extinct(sim.L);
 
   Rcpp::NumericMatrix ltable_for_r;
   vector_to_numericmatrix(sim.L, ltable_for_r);
