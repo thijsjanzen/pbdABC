@@ -135,6 +135,10 @@ struct analysis {
   }
 
 
+  void update_kernel() {
+    rndgen_.update_sigmas(compute_kernel_sigmas(current_sample));
+  }
+
   double calc_dist(const particle& p) {
     double d1 = (p.gamma - ref_gamma);
     double d2 = (p.colless - ref_colless);

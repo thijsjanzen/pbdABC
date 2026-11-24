@@ -79,12 +79,20 @@ struct prior {
     return gen_exp(rndgen); // default
   }
 
+  // All dens_* functions return the prior density in parameter space (theta).
+  // The perturbation kernel works on log(theta); the conversion (Jacobian) is
+  // applied in particle::update_weight.
+
+  // log10(theta) ~ U(lower, upper)  =>  f(theta) = 1 / (theta ln(10) (upper - lower))
   double dens_uniform(const param_set& p) const {
+    double d = 1.0;
     for (size_t i = 0; i < num_params; ++i) {
+      if (!(p[i] > 0.0)) return 0.0;
       if (std::log10(p[i]) < lower[i]) return 0.0;
       if (std::log10(p[i]) > upper[i]) return 0.0;
+      d /= p[i] * std::log(10.0) * (upper[i] - lower[i]);
     }
-    return 1.0;
+    return d;
   }
 
   double dens_exp(const param_set& params) const {
@@ -105,14 +113,18 @@ struct prior {
       p += log_means[i] - means[i] * params[i];
     }
 
-    if (params.back() < 0) return 0.0;
-    p += log_means.back() - means.back() * (1.0 / params.back());
+    // last parameter is Y = 1/X with X ~ Exp(rate):
+    // f(y) = rate * exp(-rate / y) / y^2
+    if (!(params.back() > 0.0)) return 0.0;
+    p += log_means.back() - means.back() * (1.0 / params.back())
+         - 2.0 * std::log(params.back());
 
     return std::exp(p);
   }
 
   double dens_inv_only_compl_exp(const param_set& params) const {
-    double p = log_means.back() - means.back() * (1.0 / params.back());
+    double p = log_means.back() - means.back() * (1.0 / params.back())
+               - 2.0 * std::log(params.back());  // Jacobian of y = 1/x
     return std::exp(p);
   }
 

@@ -291,31 +291,10 @@ struct analysis_par {
   }
 
   void update_kernel(size_t iter) {
-      // each sigma is to be updated to 2*var(parval)
-
-      // calculate means
-      std::array< double, 5 > means = {0.0};
-      for (const auto& i : current_sample) {
-        for (size_t j = 0; j < 5; ++j) {
-          auto add = std::log(i.params_[j]);
-
-          means[j] += add;
-        }
-      }
-      for (size_t j = 0; j < 5; ++j) {
-        means[j] *= 1.0 / current_sample.size();
-      }
-
-      sigmas = {0.0, 0.0, 0.0, 0.0, 0.0};
-      for (const auto& i : current_sample) {
-        for (size_t j = 0; j < 5; ++j) {
-          double d = std::log(i.params_[j]) - means[j];
-          sigmas[j] += d * d;
-        }
-      }
+      // kernel SD = sqrt(2 * weighted variance) of log-parameters
+      sigmas = compute_kernel_sigmas(current_sample);
       std::cerr << "iteration:" << iter << " ";
       for (size_t j = 0; j < 5; ++j) {
-        sigmas[j] *= 2.0 / current_sample.size(); // 2 VAR!
         std::cerr << sigmas[j] << " ";
       } std::cerr << "\n";
       rndgen_.update_sigmas(sigmas);

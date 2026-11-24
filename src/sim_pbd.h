@@ -233,9 +233,11 @@ struct sim_pbd {
       crown_count[1]--;
     }
 
-    fast_dist_ext.mutate_transform_partial(pop_ext.begin() + index, pop_ext.end(), index);
-    fast_dist_spec.mutate_transform_partial(pop_spec.begin() + index, pop_spec.end(), index);
-    fast_dist_compl.mutate_transform_partial(pop_compl.begin() + index, pop_compl.end(), index);
+    // recompute the cdf from 'index' onward; N must be the FULL size, not the
+    // size of the tail (fast_dist resizes its cdf to N).
+    fast_dist_ext.mutate_transform_partial_n(pop_ext.begin() + index, pop_ext.size(), index);
+    fast_dist_spec.mutate_transform_partial_n(pop_spec.begin() + index, pop_spec.size(), index);
+    fast_dist_compl.mutate_transform_partial_n(pop_compl.begin() + index, pop_compl.size(), index);
   }
 
   void do_completion() {
@@ -246,8 +248,9 @@ struct sim_pbd {
     pop_ext[index] = ext_rate[species_status::good];
     pop_compl[index] = 0.0;
     pop[index] = species_status::good;
-    pop_sp_number[index] = sp_number;
-    sp_number++;
+    // sp_number holds the last number handed out, so pre-increment to get a
+    // fresh one (otherwise the first completed species reuses number 2).
+    pop_sp_number[index] = ++sp_number;
     num_good_species++;
     num_incipient_species--;
 
@@ -296,6 +299,8 @@ struct sim_pbd {
     double artificial_death_time = max_t - 1e-3;
 
     for (const auto& i : indices) {
+      // only extant lineages can be the sampled representative of a species
+      if (pop[i] == species_status::extinct) continue;
       if (species.find(pop_sp_number[i]) != species.end()) {
         L[i][species_property::death_time] = artificial_death_time;
       } else {

@@ -17,6 +17,5 @@ LinkingTo:
     treestats
 Imports:
     pbmcapply
-RoxygenNote: 7.3.1
 Encoding: UTF-8
-
+Config/roxygen2/version: 8.1.0

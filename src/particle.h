@@ -34,27 +34,28 @@ struct particle {
   particle(const particle& other) = default;
   particle& operator=(const particle& other) = default;
 
+  // Perturb all parameters jointly with independent normal steps on the log
+  // scale, so the transition density is the product computed in prob_perturb.
   void perturb(rnd_t& rndgen) {
-    size_t index = rndgen.random_number(params_.size());
-    params_[index] = rndgen.perturb_particle_val(params_[index], index);
+    for (size_t i = 0; i < params_.size(); ++i) {
+      params_[i] = rndgen.perturb_particle_val(params_[i], i);
+    }
     return;
   }
 
   double prob_perturb(const particle& other,
                       const rnd_t& rndgen) {
 
-    // alternative calculation
-    double alt_prob = 0.0;
+    // Density of moving from 'other' to this particle in log-parameter space:
+    // product of independent normal densities, accumulated as a log sum.
+    const double log_2pi = std::log(2.0 * 3.141592653589793238);
+    double log_k = 0.0;
     for (size_t i = 0; i < other.params_.size(); ++i) {
       double sigma = rndgen.kernel_sigmas[i];
-      double factor = 1.0 / (-2 * sigma * sigma);
-      double prefactor = 1.0 / std::sqrt(2 * 3.141592653589793238 * sigma * sigma);
-
       double d = std::log(params_[i]) - std::log(other.params_[i]);
-      double p = (d * d) * factor;
-      alt_prob += std::exp(p) * prefactor;
+      log_k += -0.5 * (d * d) / (sigma * sigma) - std::log(sigma) - 0.5 * log_2pi;
     }
-    return alt_prob;
+    return std::exp(log_k);
   }
 
   bool pass_prior(const prior& prior_dist) {
@@ -81,7 +82,12 @@ struct particle {
    // prior_check.back() = 1.0 / prior_check.back();
     prob_prior = prior_dist.dens_prior(prior_check);
 
-    auto new_weight = prob_prior / sum_perturb;
+    // The kernel is a density over log(theta), so the prior must be too:
+    // f_log(log theta) = f(theta) * prod(theta).
+    double log_jacobian = 0.0;
+    for (const auto& v : params_) log_jacobian += std::log(v);
+
+    auto new_weight = prob_prior * std::exp(log_jacobian) / sum_perturb;
     weight = new_weight;
     if (std::isnan(new_weight)) weight = 0.0;
     if (std::isinf(new_weight)) weight = 1e10;
@@ -131,3 +137,32 @@ struct particle {
     return;
   }
 };
+
+// Beaumont et al. (2009): kernel variance = 2 * weighted variance of the
+// current population (here on the log scale). Returns standard deviations.
+inline std::array<double, 5> compute_kernel_sigmas(const std::vector<particle>& sample) {
+  std::array<double, 5> sigmas = {1.0, 1.0, 1.0, 1.0, 1.0};
+  if (sample.empty()) return sigmas;
+
+  double sum_w = 0.0;
+  for (const auto& p : sample) sum_w += p.weight;
+  const bool use_weights = sum_w > 0.0 && std::isfinite(sum_w);
+
+  for (size_t j = 0; j < 5; ++j) {
+    double mean = 0.0;
+    for (const auto& p : sample) {
+      double w = use_weights ? p.weight / sum_w : 1.0 / sample.size();
+      mean += w * std::log(p.params_[j]);
+    }
+    double var = 0.0;
+    for (const auto& p : sample) {
+      double w = use_weights ? p.weight / sum_w : 1.0 / sample.size();
+      double d = std::log(p.params_[j]) - mean;
+      var += w * d * d;
+    }
+    double s = std::sqrt(2.0 * var);
+    if (!std::isfinite(s) || s < 1e-6) s = 1e-6;  // avoid a degenerate kernel
+    sigmas[j] = s;
+  }
+  return sigmas;
+}

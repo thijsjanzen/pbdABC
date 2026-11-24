@@ -242,10 +242,12 @@ Rcpp::NumericMatrix perform_abc_rcpp(int num_particles,
 
    focal_analysis.iterate_first();
    update_output(res, focal_analysis.current_sample, 0);
+   focal_analysis.update_kernel();
 
    for (size_t i = 1; i < num_iterations; ++i) {
      focal_analysis.iterate(i);
      update_output(res, focal_analysis.current_sample, i);
+     focal_analysis.update_kernel();
    }
 
    Rcpp::NumericMatrix out;

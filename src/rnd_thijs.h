@@ -56,6 +56,6 @@ struct rnd_t {
     kernel_sigmas = s;
   }
 
-  std::array<double, 5> kernel_sigmas;
+  std::array<double, 5> kernel_sigmas = {1.0, 1.0, 1.0, 1.0, 1.0};
   std::uniform_real_distribution<> unif_dist;
 };
