@@ -16,6 +16,11 @@ LinkingTo:
     RcppParallel,
     treestats
 Imports:
-    pbmcapply
+    pbmcapply,
+    ggplot2,
+    ggridges,
+    tibble,
+    stats,
+    utils
 Encoding: UTF-8
 Config/roxygen2/version: 8.1.0
