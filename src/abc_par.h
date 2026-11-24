@@ -118,7 +118,10 @@ struct analysis_par {
   double distance_quantile(double q) const {
     std::vector<double> d;
     d.reserve(current_sample.size());
-    for (const auto& p : current_sample) d.push_back(p.dist);
+    // only finite distances: NaN makes nth_element's result undefined
+    for (const auto& p : current_sample) {
+      if (std::isfinite(p.dist)) d.push_back(p.dist);
+    }
     if (d.empty()) return std::numeric_limits<double>::max();
     size_t k = static_cast<size_t>(std::ceil(q * d.size()));
     if (k > 0) k--;
@@ -351,7 +354,9 @@ struct analysis_par {
     diff[1] = (d2 * d2) * 1.0 / ref_colless;
     diff[2] = (d3 * d3) * 1.0 / ref_num_lin;
 
-    return std::accumulate(diff.begin(), diff.end(), 0.0);   //*std::max_element(diff.begin(), diff.end());
+    const double d = std::accumulate(diff.begin(), diff.end(), 0.0);
+    // a non-finite distance (e.g. from undefined statistics) never passes
+    return std::isfinite(d) ? d : std::numeric_limits<double>::infinity();
   }
 
   void update_kernel(size_t iter) {

@@ -140,6 +140,16 @@ struct particle {
 
           colless_stat_ltable s(ltable_);
           colless = static_cast<double>(s.colless());
+
+          // trees whose summary statistics are undefined (e.g. gamma for a
+          // tree with 2 tips is NaN) carry no information: discard them,
+          // like any other failed simulation
+          if (!std::isfinite(gamma) || !std::isfinite(colless)) {
+            gamma = 1e6;
+            colless = 1e6;
+            num_lin = 1e6;  // also rejects them in generation 0
+            return;
+          }
           success = true;
 
           newick_tree = ltable_to_newick(ltable_,

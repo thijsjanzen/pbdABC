@@ -151,6 +151,8 @@ struct analysis {
     diff[1] = (d2 * d2) / ref_colless;
     diff[2] = (d3 * d3) * 1.0 / ref_num_lin;
 
-    return *std::max_element(diff.begin(), diff.end());
+    const double d = *std::max_element(diff.begin(), diff.end());
+    // a non-finite distance (e.g. from undefined statistics) never passes
+    return std::isfinite(d) ? d : std::numeric_limits<double>::infinity();
   }
 };
