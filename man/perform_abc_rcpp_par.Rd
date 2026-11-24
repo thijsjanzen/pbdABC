@@ -70,4 +70,7 @@ Fit to the data is assessed by the sum of differences for
 value of the empirical data (e.g. obs_gamma, obs_colless or obs_num_lineages).
 The acceptance threshold either diminishes exponentially
 (10 * exp(-0.5 * (i - 1))) or is set adaptively (see threshold_quantile).
+Pressing stop (Esc / Ctrl-C) ends the run gracefully: the generation in
+progress is discarded and all completed generations are returned, with a
+warning.
 }

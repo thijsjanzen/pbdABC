@@ -43,6 +43,9 @@ size_t get_rcpp_num_threads_abc() {
 //' value of the empirical data (e.g. obs_gamma, obs_colless or obs_num_lineages).
 //' The acceptance threshold either diminishes exponentially
 //' (10 * exp(-0.5 * (i - 1))) or is set adaptively (see threshold_quantile).
+//' Pressing stop (Esc / Ctrl-C) ends the run gracefully: the generation in
+//' progress is discarded and all completed generations are returned, with a
+//' warning.
 // [[Rcpp::export]]
 Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
                                          int num_iterations,
@@ -91,9 +94,23 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
    focal_analysis.find_output(sim_number);
    std::vector< std::array<double, 11>> res;
 
+   int num_completed = 0;
+   auto report_interrupt = [&]() {
+     Rcpp::Rcout << "\n";
+     Rcpp::warning("ABC interrupted by user; returning the %i completed "
+                   "generation(s)", num_completed);
+   };
+
    if (focal_analysis.blank_sheet) {
      focal_analysis.iterate_first();
+     if (focal_analysis.interrupted) {
+       report_interrupt();
+       Rcpp::NumericMatrix out;
+       particle_to_numericmatrix(res, out);
+       return out;
+     }
      update_output(res, focal_analysis.current_sample, 0);
+     num_completed++;
      focal_analysis.write_to_file(sim_number, 0,
                                   obs_gamma, obs_colless, obs_num_lin,
                                   bd_lambda, bd_mu);
@@ -110,9 +127,14 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
 
    for (; i < num_iterations; ++i) {
      focal_analysis.iterate(i);
+     if (focal_analysis.interrupted) {
+       report_interrupt();
+       break;
+     }
      if (focal_analysis.stopped_early) break;
 
      update_output(res, focal_analysis.current_sample, i);
+     num_completed++;
 
      focal_analysis.write_to_file(sim_number, i,
                                   obs_gamma, obs_colless, obs_num_lin,

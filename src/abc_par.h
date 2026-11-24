@@ -18,6 +18,18 @@
 
 #include <RcppParallel.h>
 
+// Non-throwing check for a user interrupt (stop button / Esc / Ctrl-C).
+// Rcpp::checkUserInterrupt() throws, which unwinds everything and loses the
+// results; R_ToplevelExec runs the check in its own top-level context and
+// returns FALSE if it was interrupted. Must be called from the main thread.
+inline void check_interrupt_fn(void* /*dummy*/) {
+  R_CheckUserInterrupt();
+}
+
+inline bool user_interrupted() {
+  return R_ToplevelExec(check_interrupt_fn, nullptr) == FALSE;
+}
+
 
 struct analysis_par {
   std::vector<particle> current_sample;
@@ -47,6 +59,7 @@ struct analysis_par {
 
   bool blank_sheet;
   bool stopped_early = false;
+  bool interrupted = false;  // user pressed stop: return completed generations
   size_t starting_iteration;
 
   std::vector<double> threshold;
@@ -140,6 +153,10 @@ struct analysis_par {
     int prev_update = 0;
 
     while(current_sample.size() < num_particles) {
+      if (user_interrupted()) {
+        interrupted = true;
+        return;
+      }
       for (size_t t = prev_update; t < current_sample.size(); ++t) {
         if (t % updateFreq == 0) {
           Rcpp::Rcout << "**";
@@ -219,6 +236,11 @@ struct analysis_par {
     int num_tried = 0;
     int num_found = 0;  // particles accepted this generation (incl. surplus)
     while(new_sample.size() < num_particles) {
+      if (user_interrupted()) {
+        // discard the unfinished generation; current_sample is unchanged
+        interrupted = true;
+        return;
+      }
       for (size_t t = prev_update; t < new_sample.size(); ++t) {
         if (t % updateFreq == 0) {
           Rcpp::Rcout << "**";
@@ -229,8 +251,9 @@ struct analysis_par {
       num_remaining = num_particles - new_sample.size();
 
       int loop_size = num_remaining * 1.0 / accept_rate;
-      if (loop_size > 100000) loop_size = 100000;
-      if (loop_size < 0) loop_size = 100000;
+      // batches are capped so that a stop is noticed within one batch
+      if (loop_size > 10000) loop_size = 10000;
+      if (loop_size < 0) loop_size = 10000;
 
       std::cerr << "\nloop_size: " << loop_size << "\n";
 
@@ -313,7 +336,6 @@ struct analysis_par {
     }
 
     Rcpp::Rcout << "\n";
-    Rcpp::checkUserInterrupt();
   }
 
 

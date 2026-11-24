@@ -31,7 +31,10 @@
 #' @param sim_number sim number for Thijs
 #' @param bd_lambda lambda estimate using DDD::bd_ML
 #' @param bd_mu mu estimate using DDD::bd_ML
-#' @return tibble
+#' @return tibble with one row per particle of every completed generation.
+#' Pressing stop (Esc / Ctrl-C) during the run ends it gracefully: the
+#' generation in progress is discarded and all completed generations are
+#' returned, with a warning.
 #' @export
 #' @rawNamespace import(Rcpp)
 #' @rawNamespace useDynLib(pbdABC, .registration = TRUE)

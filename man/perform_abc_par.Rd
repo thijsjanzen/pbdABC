@@ -79,7 +79,10 @@ generation. 2 (default) follows Beaumont et al. (2009); smaller values take
 smaller steps and usually accept more proposals.}
 }
 \value{
-tibble
+tibble with one row per particle of every completed generation.
+Pressing stop (Esc / Ctrl-C) during the run ends it gracefully: the
+generation in progress is discarded and all completed generations are
+returned, with a warning.
 }
 \description{
 function to do abc in parallel
