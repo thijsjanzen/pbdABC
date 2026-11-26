@@ -11,8 +11,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // perform_abc_rcpp_par
-Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles, int num_iterations, double crown_age, double min_lin, double max_lin, std::vector<double> lower, std::vector<double> upper, std::vector<double> means, bool use_inv_prior, double obs_gamma, double obs_colless, double obs_num_lin, int sim_number, double bd_lambda, double bd_mu, double limiting_accept_rate, double threshold_quantile, double kernel_scale);
-RcppExport SEXP _pbdABC_perform_abc_rcpp_par(SEXP num_particlesSEXP, SEXP num_iterationsSEXP, SEXP crown_ageSEXP, SEXP min_linSEXP, SEXP max_linSEXP, SEXP lowerSEXP, SEXP upperSEXP, SEXP meansSEXP, SEXP use_inv_priorSEXP, SEXP obs_gammaSEXP, SEXP obs_collessSEXP, SEXP obs_num_linSEXP, SEXP sim_numberSEXP, SEXP bd_lambdaSEXP, SEXP bd_muSEXP, SEXP limiting_accept_rateSEXP, SEXP threshold_quantileSEXP, SEXP kernel_scaleSEXP) {
+Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles, int num_iterations, double crown_age, double min_lin, double max_lin, std::vector<double> lower, std::vector<double> upper, std::vector<double> means, bool use_inv_prior, double obs_gamma, double obs_colless, double obs_num_lin, int sim_number, double bd_lambda, double bd_mu, double limiting_accept_rate, double threshold_quantile, double kernel_scale, bool scaled_distance);
+RcppExport SEXP _pbdABC_perform_abc_rcpp_par(SEXP num_particlesSEXP, SEXP num_iterationsSEXP, SEXP crown_ageSEXP, SEXP min_linSEXP, SEXP max_linSEXP, SEXP lowerSEXP, SEXP upperSEXP, SEXP meansSEXP, SEXP use_inv_priorSEXP, SEXP obs_gammaSEXP, SEXP obs_collessSEXP, SEXP obs_num_linSEXP, SEXP sim_numberSEXP, SEXP bd_lambdaSEXP, SEXP bd_muSEXP, SEXP limiting_accept_rateSEXP, SEXP threshold_quantileSEXP, SEXP kernel_scaleSEXP, SEXP scaled_distanceSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -34,7 +34,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type limiting_accept_rate(limiting_accept_rateSEXP);
     Rcpp::traits::input_parameter< double >::type threshold_quantile(threshold_quantileSEXP);
     Rcpp::traits::input_parameter< double >::type kernel_scale(kernel_scaleSEXP);
-    rcpp_result_gen = Rcpp::wrap(perform_abc_rcpp_par(num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, means, use_inv_prior, obs_gamma, obs_colless, obs_num_lin, sim_number, bd_lambda, bd_mu, limiting_accept_rate, threshold_quantile, kernel_scale));
+    Rcpp::traits::input_parameter< bool >::type scaled_distance(scaled_distanceSEXP);
+    rcpp_result_gen = Rcpp::wrap(perform_abc_rcpp_par(num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, means, use_inv_prior, obs_gamma, obs_colless, obs_num_lin, sim_number, bd_lambda, bd_mu, limiting_accept_rate, threshold_quantile, kernel_scale, scaled_distance));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -146,7 +147,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_pbdABC_perform_abc_rcpp_par", (DL_FUNC) &_pbdABC_perform_abc_rcpp_par, 18},
+    {"_pbdABC_perform_abc_rcpp_par", (DL_FUNC) &_pbdABC_perform_abc_rcpp_par, 19},
     {"_pbdABC_test_abc_rcpp_par", (DL_FUNC) &_pbdABC_test_abc_rcpp_par, 12},
     {"_pbdABC_perform_abc_rcpp", (DL_FUNC) &_pbdABC_perform_abc_rcpp, 11},
     {"_pbdABC_test_prior", (DL_FUNC) &_pbdABC_test_prior, 3},

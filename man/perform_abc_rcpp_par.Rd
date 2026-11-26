@@ -22,7 +22,8 @@ perform_abc_rcpp_par(
   bd_mu,
   limiting_accept_rate,
   threshold_quantile,
-  kernel_scale
+  kernel_scale,
+  scaled_distance
 )
 }
 \arguments{
@@ -62,6 +63,12 @@ generation (adaptive threshold); otherwise the fixed schedule is used.}
 \item{kernel_scale}{new particles are proposed with a multivariate normal
 kernel on the log-parameters, with covariance kernel_scale times the
 weighted covariance of the current population.}
+
+\item{scaled_distance}{if TRUE, the distance is the sum over gamma, the
+size-normalised Colless index and the number of species of
+((simulated - observed) / scale)^2, with each scale the spread (MAD) of
+that statistic in generation 0; if FALSE, the relative distance
+sum (simulated - observed)^2 / |observed| with the raw Colless index.}
 }
 \description{
 Fit to the data is assessed by the sum of differences for

@@ -9,7 +9,8 @@ plot_progression(
   truth = NULL,
   iterations = NULL,
   lower = NULL,
-  upper = NULL
+  upper = NULL,
+  palette = "mako"
 )
 }
 \arguments{
@@ -27,13 +28,18 @@ mu0 = mu1, mu1 = mu2, compl_rate = la1.}
 perform_abc_par); if given, each panel spans the full prior range, which
 shows how much the posterior has narrowed, and the densities are
 restricted to the prior range (with reflection at the bounds)}
+
+\item{palette}{viridis colour map for the generations (light = early, dark
+= late): "mako" (default), "rocket", "viridis", "magma", "plasma",
+"inferno", "cividis" or "turbo"}
 }
 \value{
 a ggplot object
 }
 \description{
 Stacked (ridgeline) weighted densities of each parameter, one ridge per
-generation, on a log10 axis, with the true value as a dashed line if given.
+generation, from the first generation at the top to the last at the
+bottom, on a log10 axis, with the true value as a dashed line if given.
 Each ridge is scaled to the same maximum height.
 }
 \examples{

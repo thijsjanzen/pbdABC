@@ -23,6 +23,15 @@
 #' threshold: each generation accepts particles whose distance is at most
 #' this quantile of the distances of the previous generation (0.5 is a
 #' common choice).
+#' @param distance "scaled" (default): the distance between a simulated and
+#' the observed tree is the sum over gamma, the Colless index normalised for
+#' tree size (Yule expectation) and the number of species of
+#' ((simulated - observed) / scale)^2, where scale is the spread (MAD) of that
+#' statistic among the particles of generation 0; every statistic then has a
+#' comparable influence. "relative": the original distance
+#' sum (simulated - observed)^2 / |observed| with the raw Colless index, in
+#' which the Colless index dominates. obs_colless is the raw (unnormalised)
+#' Colless index in both cases.
 #' @param kernel_scale new particles are proposed by perturbing particles of
 #' the previous generation with a multivariate normal kernel on the log scale,
 #' whose covariance is kernel_scale times the weighted covariance of that
@@ -56,7 +65,9 @@ perform_abc_par <- function(num_particles,
                       bd_lambda = 0,
                       bd_mu = 0,
                       threshold_quantile = NA,
-                      kernel_scale = 2) {
+                      kernel_scale = 2,
+                      distance = c("scaled", "relative")) {
+  distance <- match.arg(distance)
   if (!is.na(threshold_quantile) &&
       (threshold_quantile <= 0 || threshold_quantile >= 1)) {
     stop("threshold_quantile should be NA or between 0 and 1")
@@ -84,7 +95,8 @@ perform_abc_par <- function(num_particles,
                               limiting_accept_rate,
                               ifelse(is.na(threshold_quantile), -1,
                                      threshold_quantile),
-                              kernel_scale)
+                              kernel_scale,
+                              distance == "scaled")
 
   colnames(res) <- c("iter", "lambda0", "lambda1", "mu0", "mu1", "compl_rate",
                      "gamma", "colless", "num_lin", "weight", "dist")

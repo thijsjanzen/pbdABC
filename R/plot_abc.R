@@ -9,7 +9,7 @@ abc_param_labels <- c(lambda0    = "lambda0: initiation (good)",
                       compl_rate = "compl_rate: completion")
 
 utils::globalVariables(c("value", "weight", "parameter", "iter",
-                         "density", "ndensity", "x"))
+                         "density", "ndensity", "x", "generation"))
 
 # long format: one row per particle and parameter, weights normalised
 # within each generation
@@ -156,11 +156,15 @@ plot_posterior <- function(res, truth = NULL, iteration = NULL,
 #' Plot how the parameter densities change over the ABC generations
 #'
 #' Stacked (ridgeline) weighted densities of each parameter, one ridge per
-#' generation, on a log10 axis, with the true value as a dashed line if given.
+#' generation, from the first generation at the top to the last at the
+#' bottom, on a log10 axis, with the true value as a dashed line if given.
 #' Each ridge is scaled to the same maximum height.
 #'
 #' @inheritParams plot_posterior
 #' @param iterations generations to plot; defaults to all
+#' @param palette viridis colour map for the generations (light = early, dark
+#' = late): "mako" (default), "rocket", "viridis", "magma", "plasma",
+#' "inferno", "cividis" or "turbo"
 #' @return a ggplot object
 #' @examples
 #' \dontrun{
@@ -169,7 +173,7 @@ plot_posterior <- function(res, truth = NULL, iteration = NULL,
 #' }
 #' @export
 plot_progression <- function(res, truth = NULL, iterations = NULL,
-                             lower = NULL, upper = NULL) {
+                             lower = NULL, upper = NULL, palette = "mako") {
   long <- abc_to_long(res, iterations)
   truth_df <- abc_truth_to_df(truth)
   range_df <- abc_prior_range_df(lower, upper)
@@ -178,14 +182,20 @@ plot_progression <- function(res, truth = NULL, iterations = NULL,
   # are computed here and drawn as ridgelines (each scaled to maximum 1)
   dens <- abc_weighted_density(long, lower, upper)
 
+  # first generation at the top, last at the bottom
+  dens$generation <- factor(dens$iter, levels = rev(sort(unique(dens$iter))))
+
   p <- ggplot2::ggplot(dens,
-                       ggplot2::aes(x = x, y = factor(iter), height = ndensity,
+                       ggplot2::aes(x = x, y = generation, height = ndensity,
                                     fill = iter, group = iter)) +
     ggridges::geom_ridgeline(scale = 0.95, alpha = 0.8, colour = "grey30",
                              linewidth = 0.3) +
     ggplot2::facet_wrap(~parameter, scales = "free_x", nrow = 1) +
     ggplot2::scale_x_log10() +
-    ggplot2::scale_fill_viridis_c(guide = "none") +
+    # light for early generations, dark for late ones; the extremes of the
+    # map are skipped so no ridge is near-white or near-black
+    ggplot2::scale_fill_viridis_c(option = palette, begin = 0.2, end = 0.85,
+                                  direction = -1, guide = "none") +
     ggplot2::labs(x = "parameter value (log scale)", y = "generation",
                   title = "ABC posterior over the generations") +
     ggplot2::theme_bw() +

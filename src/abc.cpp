@@ -32,6 +32,11 @@ size_t get_rcpp_num_threads_abc() {
 //' @param threshold_quantile if between 0 and 1, the acceptance threshold of
 //' each generation is this quantile of the distances of the previous
 //' generation (adaptive threshold); otherwise the fixed schedule is used.
+//' @param scaled_distance if TRUE, the distance is the sum over gamma, the
+//' size-normalised Colless index and the number of species of
+//' ((simulated - observed) / scale)^2, with each scale the spread (MAD) of
+//' that statistic in generation 0; if FALSE, the relative distance
+//' sum (simulated - observed)^2 / |observed| with the raw Colless index.
 //' @param kernel_scale new particles are proposed with a multivariate normal
 //' kernel on the log-parameters, with covariance kernel_scale times the
 //' weighted covariance of the current population.
@@ -64,7 +69,8 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
                                          double bd_mu,
                                          double limiting_accept_rate,
                                          double threshold_quantile,
-                                         double kernel_scale) {
+                                         double kernel_scale,
+                                         bool scaled_distance) {
 
    auto num_threads = get_rcpp_num_threads_abc();
    auto global_control = tbb::global_control(tbb::global_control::max_allowed_parallelism, num_threads);
@@ -87,7 +93,8 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
                                obs_num_lin,
                                limiting_accept_rate,
                                threshold_quantile,
-                               kernel_scale);
+                               kernel_scale,
+                               scaled_distance);
 
    // check if is first!
 
@@ -111,6 +118,7 @@ Rcpp::NumericMatrix perform_abc_rcpp_par(int num_particles,
      }
      update_output(res, focal_analysis.current_sample, 0);
      num_completed++;
+     focal_analysis.write_scales(sim_number);
      focal_analysis.write_to_file(sim_number, 0,
                                   obs_gamma, obs_colless, obs_num_lin,
                                   bd_lambda, bd_mu);

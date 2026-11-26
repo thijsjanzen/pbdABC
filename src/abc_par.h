@@ -13,6 +13,9 @@
 #include "particle.h"
 
 #include <mutex>
+#include <chrono>
+#include <cstdio>
+#include <string>
 #include <cstdint>
 #include <random>
 
@@ -22,6 +25,15 @@
 // Rcpp::checkUserInterrupt() throws, which unwinds everything and loses the
 // results; R_ToplevelExec runs the check in its own top-level context and
 // returns FALSE if it was interrupted. Must be called from the main thread.
+// Colless index corrected for tree size under the Yule model, as
+// treestats::colless(phy, normalization = "yule"): (C - n log n -
+// n (gamma_E - 1 - log 2)) / n. Unlike the raw index it hardly depends on n.
+inline double colless_yule(double colless, double num_tips) {
+  const double g = 0.577215664901532;  // Euler-Mascheroni constant
+  return (colless - num_tips * std::log(num_tips) -
+          num_tips * (g - 1.0 - std::log(2.0))) / num_tips;
+}
+
 inline void check_interrupt_fn(void* /*dummy*/) {
   R_CheckUserInterrupt();
 }
@@ -45,6 +57,7 @@ struct analysis_par {
   const double min_lin;
   const double max_lin;
   const int num_particles;
+  const int num_generations;
   const double limit_accept_rate;
   // if in (0, 1): adaptive threshold, i.e. the acceptance threshold of each
   // generation is this quantile of the distances of the previous generation.
@@ -53,6 +66,12 @@ struct analysis_par {
   // perturbation kernel covariance = kernel_scale * weighted covariance of
   // the log-parameters of the current population
   const double kernel_scale;
+  // scaled distance: sum over statistics of ((sim - obs) / scale)^2, with
+  // the scale of each statistic its spread (MAD) in generation 0 and the
+  // Colless index normalised for tree size. Otherwise the original relative
+  // distance sum (sim - obs)^2 / |obs| with the raw Colless index.
+  const bool scaled_distance;
+  std::array<double, 3> stat_scale = {1.0, 1.0, 1.0};
   double current_threshold = 0.0;
 
   double accept_rate;
@@ -80,7 +99,8 @@ struct analysis_par {
            double obs_num_lin,
            double limit_rate,
            double thresh_quantile = -1.0,
-           double k_scale = 2.0) :
+           double k_scale = 2.0,
+           bool scaled_dist = false) :
     ref_gamma(obs_gamma),
     ref_colless(obs_colless),
     ref_num_lin(obs_num_lin),
@@ -88,9 +108,11 @@ struct analysis_par {
     min_lin(minimum_lineages),
     max_lin(maximum_lineages),
     num_particles(n),
+    num_generations(num_iterations),
     limit_accept_rate(limit_rate),
     threshold_quantile(thresh_quantile),
-    kernel_scale(k_scale) {
+    kernel_scale(k_scale),
+    scaled_distance(scaled_dist) {
     rndgen_ = rnd_t();
     for (size_t i = 0; i < num_iterations; ++i) {
       threshold.push_back(10 * std::exp(-0.5 * (i - 1)));
@@ -143,36 +165,75 @@ struct analysis_par {
     return seed_values;
   }
 
+  // One progress line per generation, redrawn in place after every batch of
+  // simulations and kept (newline) once the generation is finished.
+  size_t last_progress_length = 0;
+  std::chrono::steady_clock::time_point generation_start;
+
+  void print_progress(int generation, size_t done, long num_found,
+                      long num_tried, bool show_threshold, bool finished) {
+    const int width = 30;
+    const size_t total = static_cast<size_t>(num_particles);
+    const size_t shown = std::min(done, total);
+    const int filled = total > 0 ? static_cast<int>(width * shown / total)
+                                 : width;
+    std::string bar(filled, '=');
+    if (filled < width) {
+      bar += '>';
+      bar += std::string(width - filled - 1, ' ');
+    }
+    const int count_width = static_cast<int>(std::to_string(total).size());
+    const double seconds = std::chrono::duration<double>(
+      std::chrono::steady_clock::now() - generation_start).count();
+
+    std::string line;
+    char buf[160];
+    std::snprintf(buf, sizeof(buf), "Generation %*d/%d [%s] %*zu/%zu",
+                  static_cast<int>(std::to_string(num_generations - 1).size()),
+                  generation, num_generations - 1, bar.c_str(),
+                  count_width, shown, total);
+    line += buf;
+    if (num_tried > 0) {
+      std::snprintf(buf, sizeof(buf), " | acceptance %.3g%%",
+                    100.0 * num_found / num_tried);
+      line += buf;
+    }
+    if (show_threshold) {
+      std::snprintf(buf, sizeof(buf), " | threshold %.4g", current_threshold);
+      line += buf;
+    }
+    std::snprintf(buf, sizeof(buf), " | %.0f s", seconds);
+    line += buf;
+
+    // overwrite leftovers of a longer previous line
+    const size_t length = line.size();
+    if (length < last_progress_length) {
+      line += std::string(last_progress_length - length, ' ');
+    }
+    last_progress_length = finished ? 0 : length;
+
+    Rcpp::Rcout << "\r" << line;
+    if (finished) Rcpp::Rcout << "\n";
+    Rcpp::Rcout << std::flush;
+  }
+
   void iterate_first() {
-    int num_remaining = num_particles - current_sample.size();
     accept_rate = 1.0;
-
-
-    Rcpp::Rcout << "0--------25--------50--------75--------100\n";
-    Rcpp::Rcout << "*";
-    int updateFreq = num_particles / 20;
-    if(updateFreq < 1) updateFreq = 1;
-
-    int prev_update = 0;
+    long num_tried = 0;
+    long num_found = 0;
+    generation_start = std::chrono::steady_clock::now();
+    print_progress(0, current_sample.size(), num_found, num_tried, false, false);
 
     while(current_sample.size() < num_particles) {
       if (user_interrupted()) {
         interrupted = true;
         return;
       }
-      for (size_t t = prev_update; t < current_sample.size(); ++t) {
-        if (t % updateFreq == 0) {
-          Rcpp::Rcout << "**";
-        }
-      }
-      prev_update = current_sample.size();
 
-
+      const int num_remaining = num_particles - current_sample.size();
       int loop_size = num_remaining * 1.0 / accept_rate;
       if (loop_size > 10000) loop_size = 10000;
       if (loop_size < 0) loop_size = 10000;
-
-      std::cerr << "\nloop_size: " << loop_size << " " << current_sample.size() << "\n";
 
       const uint64_t batch_seed = rndgen_.rndgen_();
 
@@ -203,19 +264,21 @@ struct analysis_par {
           }
         });
 
-      int num_accepted = 0;
       for (const auto& i : found_particles) {
-        if (i.success && current_sample.size() < num_particles) {
-          current_sample.push_back(i);
-          num_accepted++;
+        if (i.success) {
+          num_found++;
+          if (current_sample.size() < num_particles) current_sample.push_back(i);
         }
       }
-      accept_rate = 1.0 * (1 + num_accepted) / found_particles.size();
-  //    Rcpp::Rcout << "current_accept_rate: " << accept_rate << "\n";
+      num_tried += loop_size;
+      accept_rate = 1.0 * (1 + num_found) / num_tried;
+      print_progress(0, current_sample.size(), num_found, num_tried, false,
+                     false);
     }
 
+    print_progress(0, current_sample.size(), num_found, num_tried, false, true);
+    if (scaled_distance) compute_stat_scales();
     update_distances();
-    Rcpp::Rcout << "\n";
   }
 
   void iterate(int iteration) {
@@ -228,28 +291,17 @@ struct analysis_par {
     int num_remaining = num_particles;
     accept_rate = 1.0;
     current_threshold = threshold_for(iteration);
-    Rcpp::Rcout << "iteration: " << iteration
-                << ", threshold: " << current_threshold << "\n";
-    Rcpp::Rcout << "0--------25--------50--------75--------100\n";
-    Rcpp::Rcout << "*";
-    int updateFreq = num_particles / 20;
-    if(updateFreq < 1) updateFreq = 1;
+    long num_tried = 0;
+    long num_found = 0;  // particles accepted this generation (incl. surplus)
+    generation_start = std::chrono::steady_clock::now();
+    print_progress(iteration, 0, num_found, num_tried, true, false);
 
-    int prev_update = 0;
-    int num_tried = 0;
-    int num_found = 0;  // particles accepted this generation (incl. surplus)
     while(new_sample.size() < num_particles) {
       if (user_interrupted()) {
         // discard the unfinished generation; current_sample is unchanged
         interrupted = true;
         return;
       }
-      for (size_t t = prev_update; t < new_sample.size(); ++t) {
-        if (t % updateFreq == 0) {
-          Rcpp::Rcout << "**";
-        }
-      }
-      prev_update = new_sample.size();
 
       num_remaining = num_particles - new_sample.size();
 
@@ -257,9 +309,6 @@ struct analysis_par {
       // batches are capped so that a stop is noticed within one batch
       if (loop_size > 10000) loop_size = 10000;
       if (loop_size < 0) loop_size = 10000;
-
-      std::cerr << "\nloop_size: " << loop_size << "\n";
-
 
       const uint64_t batch_seed = rndgen_.rndgen_();
 
@@ -309,15 +358,21 @@ struct analysis_par {
       // lower than it was and stopped runs early)
       num_tried += loop_size;
       accept_rate = 1.0 * (1 + num_found) / num_tried;
-      Rcpp::Rcout << "\ncurrent_accept_rate: " << accept_rate << "\n";
+      print_progress(iteration, new_sample.size(), num_found, num_tried, true,
+                     false);
       if (accept_rate < limit_accept_rate) {
         break;
       }
     }
+    print_progress(iteration, new_sample.size(), num_found, num_tried, true,
+                   true);
+    if (new_sample.size() < num_particles) {
+      Rcpp::Rcout << "acceptance rate below limiting_accept_rate, stopping\n";
+    }
 
     if (new_sample.empty()) {
       // nothing accepted: keep the previous population, caller stops
-      Rcpp::Rcout << "\nno particles accepted, stopping\n";
+      Rcpp::Rcout << "no particles accepted\n";
       stopped_early = true;
       return;
     }
@@ -328,7 +383,7 @@ struct analysis_par {
       sum_weights += i.weight;
     }
     if (!(sum_weights > 0.0) || !std::isfinite(sum_weights)) {
-      Rcpp::Rcout << "\ninvalid particle weights, stopping\n";
+      Rcpp::Rcout << "invalid particle weights, stopping\n";
       stopped_early = true;
       return;
     }
@@ -337,12 +392,76 @@ struct analysis_par {
     for (auto& i : current_sample) {
       i.weight *= factor;
     }
-
-    Rcpp::Rcout << "\n";
   }
 
 
+  // the summary statistics as used by the scaled distance
+  std::array<double, 3> distance_stats(double gamma, double colless,
+                                       double num_lin) const {
+    return {gamma, colless_yule(colless, num_lin), num_lin};
+  }
+
+  // scale of each statistic: MAD (x 1.4826, a robust standard deviation) in
+  // the current population, i.e. generation 0; falls back to the standard
+  // deviation, and to 1, if a statistic does not vary
+  void compute_stat_scales() {
+    const size_t n = current_sample.size();
+    for (size_t k = 0; k < 3; ++k) {
+      std::vector<double> x;
+      x.reserve(n);
+      for (const auto& p : current_sample) {
+        x.push_back(distance_stats(p.gamma, p.colless, p.num_lin)[k]);
+      }
+      if (x.size() < 2) { stat_scale[k] = 1.0; continue; }
+      auto median_of = [](std::vector<double> v) {
+        std::nth_element(v.begin(), v.begin() + v.size() / 2, v.end());
+        return v[v.size() / 2];
+      };
+      const double med = median_of(x);
+      std::vector<double> dev(x.size());
+      for (size_t i = 0; i < x.size(); ++i) dev[i] = std::abs(x[i] - med);
+      double scale = 1.4826 * median_of(dev);
+      if (!(scale > 0.0) || !std::isfinite(scale)) {
+        double mean = 0.0, var = 0.0;
+        for (double v : x) mean += v / x.size();
+        for (double v : x) var += (v - mean) * (v - mean) / (x.size() - 1);
+        scale = std::sqrt(var);
+      }
+      stat_scale[k] = (scale > 0.0 && std::isfinite(scale)) ? scale : 1.0;
+    }
+    Rcpp::Rcout << "distance scales (MAD in generation 0): gamma "
+                << stat_scale[0] << ", Colless (size-normalised) "
+                << stat_scale[1] << ", number of species " << stat_scale[2]
+                << "\n";
+  }
+
+  // the scales define the distance, so a resumed run must reuse them
+  void write_scales(int sim_number) const {
+    std::ofstream out("scales_" + std::to_string(sim_number) + ".txt");
+    out.precision(17);
+    out << stat_scale[0] << " " << stat_scale[1] << " " << stat_scale[2] << "\n";
+  }
+
+  bool read_scales(int sim_number) {
+    std::ifstream in("scales_" + std::to_string(sim_number) + ".txt");
+    std::array<double, 3> s;
+    if (!(in >> s[0] >> s[1] >> s[2])) return false;
+    stat_scale = s;
+    return true;
+  }
+
   double calc_dist(const particle& p) {
+    if (scaled_distance) {
+      const auto sim = distance_stats(p.gamma, p.colless, p.num_lin);
+      const auto obs = distance_stats(ref_gamma, ref_colless, ref_num_lin);
+      double d = 0.0;
+      for (size_t k = 0; k < 3; ++k) {
+        const double z = (sim[k] - obs[k]) / stat_scale[k];
+        d += z * z;
+      }
+      return std::isfinite(d) ? d : std::numeric_limits<double>::infinity();
+    }
+
     double d1 = (p.gamma - ref_gamma);
     double d2 = (p.colless - ref_colless);
     double d3 = (p.num_lin- ref_num_lin);
@@ -363,11 +482,6 @@ struct analysis_par {
       // multivariate normal kernel on log-parameters with covariance
       // kernel_scale * weighted covariance of the current population
       rndgen_.update_kernel(compute_kernel(current_sample, kernel_scale));
-      auto sds = rndgen_.kernel_sds();
-      std::cerr << "iteration:" << iter << " kernel sd:";
-      for (size_t j = 0; j < 5; ++j) {
-        std::cerr << " " << sds[j];
-      } std::cerr << "\n";
   }
 
   void write_to_file(int sim_number,
@@ -416,7 +530,8 @@ struct analysis_par {
 
       if (in_file.good()) {
 
-        std::cerr << "found previous output from iteration: " << iter << "\n";
+        Rcpp::Rcout << "found previous output up to generation " << iter
+                    << ", continuing from there\n";
 
         current_sample.clear();
 
@@ -444,11 +559,19 @@ struct analysis_par {
           }
         }
         current_sample.pop_back(); // last entry always duplicates
+        if (scaled_distance && !read_scales(sim_number)) {
+          // output from a run without a scales file: estimate them from the
+          // resumed population (the distance then differs from that run)
+          Rcpp::Rcout << "no scales_" << sim_number << ".txt found; "
+                      << "estimating distance scales from the resumed "
+                      << "population\n";
+          compute_stat_scales();
+        }
         update_distances();
         starting_iteration = iter + 1;
         blank_sheet = false;
 
-        std::cerr << "read: " << current_sample.size() << "entries\n";
+        Rcpp::Rcout << "read " << current_sample.size() << " particles\n";
 
         break;
       }

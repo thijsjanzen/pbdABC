@@ -20,6 +20,11 @@
 #' @param threshold_quantile if between 0 and 1, the acceptance threshold of
 #' each generation is this quantile of the distances of the previous
 #' generation (adaptive threshold); otherwise the fixed schedule is used.
+#' @param scaled_distance if TRUE, the distance is the sum over gamma, the
+#' size-normalised Colless index and the number of species of
+#' ((simulated - observed) / scale)^2, with each scale the spread (MAD) of
+#' that statistic in generation 0; if FALSE, the relative distance
+#' sum (simulated - observed)^2 / |observed| with the raw Colless index.
 #' @param kernel_scale new particles are proposed with a multivariate normal
 #' kernel on the log-parameters, with covariance kernel_scale times the
 #' weighted covariance of the current population.
@@ -34,8 +39,8 @@
 #' Pressing stop (Esc / Ctrl-C) ends the run gracefully: the generation in
 #' progress is discarded and all completed generations are returned, with a
 #' warning.
-perform_abc_rcpp_par <- function(num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, means, use_inv_prior, obs_gamma, obs_colless, obs_num_lin, sim_number, bd_lambda, bd_mu, limiting_accept_rate, threshold_quantile, kernel_scale) {
-    .Call(`_pbdABC_perform_abc_rcpp_par`, num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, means, use_inv_prior, obs_gamma, obs_colless, obs_num_lin, sim_number, bd_lambda, bd_mu, limiting_accept_rate, threshold_quantile, kernel_scale)
+perform_abc_rcpp_par <- function(num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, means, use_inv_prior, obs_gamma, obs_colless, obs_num_lin, sim_number, bd_lambda, bd_mu, limiting_accept_rate, threshold_quantile, kernel_scale, scaled_distance) {
+    .Call(`_pbdABC_perform_abc_rcpp_par`, num_particles, num_iterations, crown_age, min_lin, max_lin, lower, upper, means, use_inv_prior, obs_gamma, obs_colless, obs_num_lin, sim_number, bd_lambda, bd_mu, limiting_accept_rate, threshold_quantile, kernel_scale, scaled_distance)
 }
 
 #' function to do abc using rcpp

@@ -23,7 +23,8 @@ perform_abc_par(
   bd_lambda = 0,
   bd_mu = 0,
   threshold_quantile = NA,
-  kernel_scale = 2
+  kernel_scale = 2,
+  distance = c("scaled", "relative")
 )
 }
 \arguments{
@@ -77,6 +78,16 @@ the previous generation with a multivariate normal kernel on the log scale,
 whose covariance is kernel_scale times the weighted covariance of that
 generation. 2 (default) follows Beaumont et al. (2009); smaller values take
 smaller steps and usually accept more proposals.}
+
+\item{distance}{"scaled" (default): the distance between a simulated and
+the observed tree is the sum over gamma, the Colless index normalised for
+tree size (Yule expectation) and the number of species of
+((simulated - observed) / scale)^2, where scale is the spread (MAD) of that
+statistic among the particles of generation 0; every statistic then has a
+comparable influence. "relative": the original distance
+sum (simulated - observed)^2 / |observed| with the raw Colless index, in
+which the Colless index dominates. obs_colless is the raw (unnormalised)
+Colless index in both cases.}
 }
 \value{
 tibble with one row per particle of every completed generation.
